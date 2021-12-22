@@ -5,7 +5,7 @@
  * 4：处理ERC20代币(USDT)的充值
  */
 
-package main
+package mymain
 
 import (
 	"context"
@@ -16,6 +16,7 @@ import (
 	"math/big"
 	"os"
 	"os/signal"
+	"syscall"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -93,12 +94,7 @@ func main() {
 	redisClientPointer.FlushAll() // 清除之前所有測試資料
 
 	go func() {
-		router := gin.Default()
-		router.POST(`/account`, postAccountAPI)
-		router.POST(`/account/deposit/ETH`, postAccountDepositAPI)
-		router.POST(`/account/withdrawal/ETH`, postAccountWithdrawalAPI)
-		router.POST(`/account/accumulation`, postAccountAccumulationAPI)
-		router.Run()
+		setupRouter().Run()
 	}()
 
 	// 1：为每个用户生成生成用户钱包
@@ -116,8 +112,8 @@ func main() {
 		log.Fatal(err)
 	} else {
 
-		signalChannel := make(chan os.Signal)               // channel for interrupt
-		signal.Notify(signalChannel, os.Interrupt, os.Kill) // notify interrupts
+		signalChannel := make(chan os.Signal, 1)                    // channel for interrupt
+		signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM) // notify interrupts
 		isDoneChannel := make(chan bool, 100)
 
 		for {
@@ -225,6 +221,18 @@ func main() {
 
 	}
 
+}
+
+// 設定路由
+func setupRouter() *gin.Engine {
+
+	router := gin.Default()
+	router.POST(`/account`, postAccountAPI)
+	router.POST(`/account/deposit/ETH`, postAccountDepositAPI)
+	router.POST(`/account/withdrawal/ETH`, postAccountWithdrawalAPI)
+	router.POST(`/account/accumulation`, postAccountAccumulationAPI)
+
+	return router
 }
 
 // 初始化

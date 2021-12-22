@@ -1,29 +1,36 @@
-package main
+package mymain
 
 import (
 	"context"
 	"log"
 	"math/big"
+	"regexp"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/gin-gonic/gin"
 )
 
-// API 充值
-func postAccountDepositAPI(ginContextPointer *gin.Context) {
+// API 提幣
+func postAccountWithdrawalAPI(ginContextPointer *gin.Context) {
 
 	type Parameters struct {
-		Size int
+		Address string
+		Size    int
 	}
 
 	var parameters Parameters
 
-	if !isBindParametersPointerError(ginContextPointer, &parameters) {
+	if !isBindParametersPointerError(ginContextPointer, &parameters) &&
+		regexp.MustCompile(`^0x[0-9a-fA-F]{40}$`).MatchString(parameters.Address) {
 
-		privateKeyPointer := accountDatas[AccountSourceWalletIndex].PrivateKeyPointer
-		fromAddress := accountDatas[AccountSourceWalletIndex].AccountPointer.Address
+		// 当收到transfer的restful请求时，把热钱包的资金转入到用户指定的钱包地址
+		// 离线签名，并广播交易
 
-		toAddress := accountDatas[AccountWalletIndex].AccountPointer.Address
+		privateKeyPointer := accountDatas[HotWalletIndex].PrivateKeyPointer
+		fromAddress := accountDatas[HotWalletIndex].AccountPointer.Address
+
+		toAddress := common.HexToAddress(parameters.Address)
 
 		amount := bigIntObject.Mul(big.NewInt(int64(parameters.Size)), weisPerEthBigInt) // in wei (Size eth)
 		gasLimit := uint64(21000)                                                        // in units

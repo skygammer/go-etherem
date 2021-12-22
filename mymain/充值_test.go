@@ -13,6 +13,8 @@ import (
 func Test_postAccountDepositAPI(t *testing.T) {
 
 	initialize()
+	redisClientPointer.FlushAll() // 清除之前所有測試資料
+
 	router := setupRouter()
 	responseRecorderPointer := httptest.NewRecorder()
 

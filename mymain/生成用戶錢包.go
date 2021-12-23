@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis"
 )
 
 // API 生成用户钱包
@@ -35,16 +36,19 @@ func postAccountAPI(ginContextPointer *gin.Context) {
 			fmt.Println(`hash value:`, valueString)
 		}
 
-		// 生成account_created消息并发送到队列的account_created主题(redis 中 stream数据)
-		redisClientPointer.RPush(
-			redisListKeys[AccountCreatedIndex],
-			fmt.Sprintf(
-				`新增帳戶 %s`,
-				accountDatas[AccountWalletIndex].AccountPointer.Address.Hex(),
-			),
-		)
+		if err :=
+			redisClientPointer.XAdd(
+				&redis.XAddArgs{
+					Stream: redisStreamKeys[AccountCreatedIndex],
+					ID:     `*`,
+					Values: map[string]interface{}{
+						`address`: accountDatas[AccountWalletIndex].AccountPointer.Address.Hex(),
+					},
+				}).Err(); err != nil {
+			log.Fatal(err)
+		}
 
-		printRedisList()
+		printRedisStreams()
 
 	}
 

@@ -2,7 +2,6 @@ package mymain
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 
 	"github.com/gin-gonic/gin"
@@ -32,8 +31,7 @@ func postAccountAPI(ginContextPointer *gin.Context) {
 			redisClientPointer.Get(hashKeyString).Result(); err != nil {
 			log.Fatal(err)
 		} else {
-			fmt.Println(`hash key:`, hashKeyString)
-			fmt.Println(`hash value:`, valueString)
+			log.Println(`hash`, `key=`, hashKeyString, `value=`, valueString)
 		}
 
 		if err :=

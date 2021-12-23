@@ -3,6 +3,7 @@ package mymain
 import (
 	"context"
 	"log"
+	"math/big"
 	"os"
 	"os/signal"
 	"syscall"
@@ -13,130 +14,152 @@ import (
 
 // 監聽新區塊
 func subscribeNewBlocks() {
-	headerChannel := make(chan *types.Header)
 
-	if subscription, err :=
-		ethWebsocketClientPointer.SubscribeNewHead(
-			context.Background(),
-			headerChannel,
-		); err != nil {
+	const nextBlockNumberString = `Next Block Number`
+
+	if nextBlockNumber, err :=
+		redisClientPointer.Get(nextBlockNumberString).Int64(); err != nil && err != redis.Nil {
 		log.Fatal(err)
 	} else {
 
-		signalChannel := make(chan os.Signal, 1)                    // channel for interrupt
-		signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM) // notify interrupts
-		isDoneChannel := make(chan bool, 100)
+		headerChannel := make(chan *types.Header, 1)
 
-		for {
+		if subscription, err :=
+			ethWebsocketClientPointer.SubscribeNewHead(
+				context.Background(),
+				headerChannel,
+			); err != nil {
+			log.Fatal(err)
+		} else {
 
-			select {
+			signalChannel := make(chan os.Signal, 1)                    // channel for interrupt
+			signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM) // notify interrupts
+			isDoneChannel := make(chan bool, 1)                         // channel for is done
 
-			case err := <-subscription.Err():
+			for {
 
-				if err != nil {
-					log.Fatal(err)
-				}
+				select {
 
-			case header := <-headerChannel:
+				case err := <-subscription.Err():
 
-				// 监听新区块，获取区块中的全部交易
-				// 过滤掉与钱包地址无关的交易
-				// 将每个相关的交易都发往队列
-				if block, err := ethWebsocketClientPointer.BlockByHash(context.Background(), header.Hash()); err != nil {
-					log.Fatal(err)
-				} else {
+					if err != nil {
+						log.Fatal(err)
+					}
 
-					for _, tx := range block.Transactions() {
+				case header := <-headerChannel:
 
-						toAddress := tx.To()
+					for currentBlockNumber := nextBlockNumber; currentBlockNumber <= header.Number.Int64(); currentBlockNumber++ {
 
-						if fromAddress, err :=
-							types.Sender(types.NewEIP2930Signer(tx.ChainId()), tx); err != nil {
+						// 监听新区块，获取区块中的全部交易
+						// 过滤掉与钱包地址无关的交易
+						// 将每个相关的交易都发往队列
+						if block, err :=
+							ethWebsocketClientPointer.BlockByNumber(context.Background(), big.NewInt(currentBlockNumber)); err != nil {
 							log.Fatal(err)
 						} else {
 
-							valueInETHString := bigIntObject.Div(tx.Value(), weisPerEthBigInt).String()
+							for _, tx := range block.Transactions() {
 
-							fromAddressHex := fromAddress.Hex()
+								toAddress := tx.To()
 
-							toAddressHex := toAddress.Hex()
-
-							if *toAddress == accountDatas[AccountWalletIndex].AccountPointer.Address {
-
-								// 生成transfer消息并发送到队列的deposit主题(redis 中 stream数据)
-								if err :=
-									redisClientPointer.XAdd(
-										&redis.XAddArgs{
-											Stream: redisStreamKeys[DepositIndex],
-											ID:     `*`,
-											Values: map[string]interface{}{
-												`to`:       toAddressHex,
-												`eth_size`: valueInETHString,
-											},
-										}).Err(); err != nil {
+								if fromAddress, err :=
+									types.Sender(types.NewEIP2930Signer(tx.ChainId()), tx); err != nil {
 									log.Fatal(err)
-								}
+								} else {
 
-							} else if fromAddress ==
-								accountDatas[HotWalletIndex].AccountPointer.Address {
+									valueInETHString := bigIntObject.Div(tx.Value(), weisPerEthBigInt).String()
 
-								// 生成transfer消息并发送到队列的withdraw主题(redis 中 stream数据)
-								if err :=
-									redisClientPointer.XAdd(
-										&redis.XAddArgs{
-											Stream: redisStreamKeys[WithdrawIndex],
-											ID:     `*`,
-											Values: map[string]interface{}{
-												`from`:     fromAddressHex,
-												`to`:       toAddressHex,
-												`eth_size`: valueInETHString,
-											},
-										}).Err(); err != nil {
-									log.Fatal(err)
-								}
+									fromAddressHex := fromAddress.Hex()
 
-							} else if fromAddress ==
-								accountDatas[AccountWalletIndex].AccountPointer.Address {
+									toAddressHex := toAddress.Hex()
 
-								// 生成transfer消息并发送到队列的collection主题(redis 中 stream数据)
-								if err :=
-									redisClientPointer.XAdd(
-										&redis.XAddArgs{
-											Stream: redisStreamKeys[CollectionIndex],
-											ID:     `*`,
-											Values: map[string]interface{}{
-												`to`:       toAddressHex,
-												`eth_size`: valueInETHString,
-											},
-										}).Err(); err != nil {
-									log.Fatal(err)
+									if *toAddress == accountDatas[AccountWalletIndex].AccountPointer.Address {
+
+										// 生成transfer消息并发送到队列的deposit主题(redis 中 stream数据)
+										if err :=
+											redisClientPointer.XAdd(
+												&redis.XAddArgs{
+													Stream: redisStreamKeys[DepositIndex],
+													ID:     `*`,
+													Values: map[string]interface{}{
+														`to`:       toAddressHex,
+														`eth_size`: valueInETHString,
+													},
+												}).Err(); err != nil {
+											log.Fatal(err)
+										}
+
+									} else if fromAddress ==
+										accountDatas[HotWalletIndex].AccountPointer.Address {
+
+										// 生成transfer消息并发送到队列的withdraw主题(redis 中 stream数据)
+										if err :=
+											redisClientPointer.XAdd(
+												&redis.XAddArgs{
+													Stream: redisStreamKeys[WithdrawIndex],
+													ID:     `*`,
+													Values: map[string]interface{}{
+														`from`:     fromAddressHex,
+														`to`:       toAddressHex,
+														`eth_size`: valueInETHString,
+													},
+												}).Err(); err != nil {
+											log.Fatal(err)
+										}
+
+									} else if fromAddress ==
+										accountDatas[AccountWalletIndex].AccountPointer.Address {
+
+										// 生成transfer消息并发送到队列的collection主题(redis 中 stream数据)
+										if err :=
+											redisClientPointer.XAdd(
+												&redis.XAddArgs{
+													Stream: redisStreamKeys[CollectionIndex],
+													ID:     `*`,
+													Values: map[string]interface{}{
+														`to`:       toAddressHex,
+														`eth_size`: valueInETHString,
+													},
+												}).Err(); err != nil {
+											log.Fatal(err)
+										}
+
+									}
+
+									redisClientPointer.Set(
+										nextBlockNumberString,
+										currentBlockNumber+1,
+										0,
+									)
+
+									printRedisStreams()
+
 								}
 
 							}
-
-							printRedisStreams()
 
 						}
 
 					}
 
+					isDoneChannel <- true
+
+				case signal := <-signalChannel:
+					log.Println(signal)
+					subscription.Unsubscribe()
+
+					for len(isDoneChannel) != 0 {
+						<-isDoneChannel
+					}
+
+					return
+
 				}
 
-				isDoneChannel <- true
-
-			case signal := <-signalChannel:
-				log.Println(signal)
-				close(headerChannel)
-				subscription.Unsubscribe()
-
-				for len(isDoneChannel) != 0 {
-					<-isDoneChannel
-				}
-
-				return
 			}
 
 		}
 
 	}
+
 }

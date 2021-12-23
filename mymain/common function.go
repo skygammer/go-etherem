@@ -115,16 +115,6 @@ func initialize() {
 
 }
 
-// 依據助記詞取得預設帳戶
-func getDefaultAccountPointerByMnemonicStringAndDerivationPathString(mnemonicString string) *accounts.Account {
-
-	return getAccountPointerByMnemonicStringAndDerivationPathIndex(
-		mnemonicString,
-		0,
-	)
-
-}
-
 // 依據助記詞、推導路徑索引取得帳戶
 func getAccountPointerByMnemonicStringAndDerivationPathIndex(mnemonicString string, derivationPathIndex int) *accounts.Account {
 
@@ -227,11 +217,9 @@ func isBindParametersPointerError(ginContextPointer *gin.Context, parametersPoin
 // 列印Redis隊列
 func printRedisStreams() {
 
-	fmt.Println(`====== redis streams start ======`)
-
 	for _, redisStreamKey := range redisStreamKeys {
 
-		fmt.Println(
+		log.Println(
 			redisClientPointer.XRange(
 				redisStreamKey,
 				`-`,
@@ -240,7 +228,5 @@ func printRedisStreams() {
 		)
 
 	}
-
-	fmt.Println(`====== redis streams end ======`)
 
 }

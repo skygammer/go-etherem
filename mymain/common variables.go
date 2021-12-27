@@ -13,6 +13,7 @@ const (
 	HotWalletIndex                 //熱錢包
 	SystemColdWalletIndex          //系統冷錢包
 	BossColdWalletIndex            //boss冷錢包
+	WithdrawToWalletIndex          //歸集目的錢包
 )
 
 const (

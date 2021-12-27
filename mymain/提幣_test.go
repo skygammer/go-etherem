@@ -2,6 +2,7 @@ package mymain
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -21,12 +22,19 @@ func Test_postAccountWithdrawalAPI(t *testing.T) {
 		http.NewRequest(
 			http.MethodPost,
 			`/account/withdrawal/ETH`,
-			bytes.NewBufferString(`
-				{
-					"Address":"0x8d4C1bfc33d20442aA7890196FDf6EFd518eEFE3",
-					"Size":1
-				}
-			`),
+			bytes.NewBufferString(
+				fmt.Sprintf(`
+					{
+						"Address":"%s",
+						"Size":1
+					}
+					`,
+					getAccountPointerByMnemonicStringAndDerivationPathIndex(
+						mnemonic,
+						accountIndexMax-WithdrawIndex,
+					).Address.Hex(),
+				),
+			),
 		); err != nil {
 		log.Fatal(err)
 	} else {

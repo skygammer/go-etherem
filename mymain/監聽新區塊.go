@@ -79,8 +79,7 @@ func subscribeNewBlocks() {
 									toAddressHex := toAddress.Hex()
 
 									if fromAddressHex ==
-										specialWalletAddressHexes[HotWalletIndex] &&
-										isInternalAccountAddressHexString(toAddressHex) {
+										specialWalletAddressHexes[HotWalletIndex] {
 
 										// 生成transfer消息并发送到队列的withdraw主题(redis 中 stream数据)
 										if err :=

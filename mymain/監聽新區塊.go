@@ -6,7 +6,6 @@ import (
 	"math/big"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
 	"github.com/ethereum/go-ethereum/core/types"
@@ -18,37 +17,38 @@ func subscribeNewBlocks() {
 
 	const nextBlockNumberString = `Next Block Number`
 
-	if nextBlockNumber, err :=
-		redisClientPointer.Get(nextBlockNumberString).Int64(); err != nil && err != redis.Nil {
+	headerChannel := make(chan *types.Header, 1)
+
+	if subscription, err :=
+		ethWebsocketClientPointer.SubscribeNewHead(
+			context.Background(),
+			headerChannel,
+		); err != nil {
 		log.Fatal(err)
 	} else {
 
-		headerChannel := make(chan *types.Header, 1)
+		signalChannel := make(chan os.Signal, 1)                    // channel for interrupt
+		signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM) // notify interrupts
 
-		if subscription, err :=
-			ethWebsocketClientPointer.SubscribeNewHead(
-				context.Background(),
-				headerChannel,
-			); err != nil {
-			log.Fatal(err)
-		} else {
+		for {
 
-			signalChannel := make(chan os.Signal, 1)                    // channel for interrupt
-			signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM) // notify interrupts
+			select {
 
-			for {
+			case err := <-subscription.Err():
 
-				select {
+				if err != nil {
+					log.Fatal(err)
+				}
 
-				case err := <-subscription.Err():
+			case header := <-headerChannel:
 
-					if err != nil {
-						log.Fatal(err)
-					}
+				isUndoneChannel <- true
 
-				case header := <-headerChannel:
-
-					isUndoneChannel <- true
+				if nextBlockNumber, err :=
+					redisClientPointer.Get(nextBlockNumberString).Int64(); err != nil &&
+					err != redis.Nil {
+					log.Fatal(err)
+				} else {
 
 					for currentBlockNumber := nextBlockNumber; currentBlockNumber <= header.Number.Int64(); currentBlockNumber++ {
 
@@ -56,7 +56,10 @@ func subscribeNewBlocks() {
 						// 过滤掉与钱包地址无关的交易
 						// 将每个相关的交易都发往队列
 						if block, err :=
-							ethWebsocketClientPointer.BlockByNumber(context.Background(), big.NewInt(currentBlockNumber)); err != nil {
+							ethWebsocketClientPointer.BlockByNumber(
+								context.Background(),
+								big.NewInt(currentBlockNumber),
+							); err != nil {
 							log.Fatal(err)
 						} else {
 
@@ -75,26 +78,9 @@ func subscribeNewBlocks() {
 
 									toAddressHex := toAddress.Hex()
 
-									if len(strings.TrimSpace(redisClientPointer.HGet(addressToPrivateKeyString, fromAddressHex).Val())) == 0 &&
-										len(strings.TrimSpace(redisClientPointer.HGet(addressToPrivateKeyString, toAddressHex).Val())) > 0 {
-
-										// 生成transfer消息并发送到队列的deposit主题(redis 中 stream数据)
-										if err :=
-											redisClientPointer.XAdd(
-												&redis.XAddArgs{
-													Stream: redisStreamKeys[DepositIndex],
-													ID:     `*`,
-													Values: map[string]interface{}{
-														`from`:     fromAddressHex,
-														`to`:       toAddressHex,
-														`eth_size`: valueInETHString,
-													},
-												}).Err(); err != nil {
-											log.Fatal(err)
-										}
-
-									} else if fromAddressHex ==
-										specialWalletAddressHexes[HotWalletIndex] {
+									if fromAddressHex ==
+										specialWalletAddressHexes[HotWalletIndex] &&
+										isInternalAccountAddressHexString(toAddressHex) {
 
 										// 生成transfer消息并发送到队列的withdraw主题(redis 中 stream数据)
 										if err :=
@@ -111,7 +97,7 @@ func subscribeNewBlocks() {
 											log.Fatal(err)
 										}
 
-									} else if fromAddressHex ==
+									} else if toAddressHex ==
 										specialWalletAddressHexes[CollectionIndex] {
 
 										// 生成transfer消息并发送到队列的collection主题(redis 中 stream数据)
@@ -121,6 +107,25 @@ func subscribeNewBlocks() {
 													Stream: redisStreamKeys[CollectionIndex],
 													ID:     `*`,
 													Values: map[string]interface{}{
+														`from`:     fromAddressHex,
+														`to`:       toAddressHex,
+														`eth_size`: valueInETHString,
+													},
+												}).Err(); err != nil {
+											log.Fatal(err)
+										}
+
+									} else if !isInternalAccountAddressHexString(fromAddressHex) &&
+										isInternalAccountAddressHexString(toAddressHex) {
+
+										// 生成transfer消息并发送到队列的deposit主题(redis 中 stream数据)
+										if err :=
+											redisClientPointer.XAdd(
+												&redis.XAddArgs{
+													Stream: redisStreamKeys[DepositIndex],
+													ID:     `*`,
+													Values: map[string]interface{}{
+														`from`:     fromAddressHex,
 														`to`:       toAddressHex,
 														`eth_size`: valueInETHString,
 													},
@@ -146,18 +151,18 @@ func subscribeNewBlocks() {
 
 					}
 
-					<-isUndoneChannel
-
-				case signal := <-signalChannel:
-					log.Println(signal)
-					subscription.Unsubscribe()
-
-					for len(isUndoneChannel) != 0 {
-					}
-
-					return
-
 				}
+
+				<-isUndoneChannel
+
+			case signal := <-signalChannel:
+				log.Println(signal)
+				subscription.Unsubscribe()
+
+				for len(isUndoneChannel) != 0 {
+				}
+
+				return
 
 			}
 

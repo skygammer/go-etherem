@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -23,7 +24,7 @@ func setupRouter() *gin.Engine {
 	router.POST(`/account`, postAccountAPI)
 	router.POST(`/account/deposit/ETH`, postAccountDepositAPI)
 	router.POST(`/account/withdrawal/ETH`, postAccountWithdrawalAPI)
-	router.POST(`/account/accumulation`, postAccountAccumulationAPI)
+	router.POST(`/accumulation`, postAccountAccumulationAPI)
 
 	return router
 }
@@ -236,5 +237,34 @@ func printRedisStreams() {
 		)
 
 	}
+
+}
+
+// 判斷是否為內部帳戶
+func isInternalAccount(accountString string) bool {
+
+	trimmedAccountString := strings.TrimSpace(accountString)
+
+	return len(trimmedAccountString) > 0 &&
+		redisClientPointer.HExists(accountToAddressString, trimmedAccountString).Val()
+}
+
+// 判斷是否為內部帳戶hex地址字串
+func isInternalAccountAddressHexString(addressHexString string) bool {
+
+	if trimmedAddressHexString :=
+		strings.TrimSpace(addressHexString); isAddressHexStringLegal(trimmedAddressHexString) {
+
+		for _, value := range redisClientPointer.HVals(accountToAddressString).Val() {
+
+			if value == trimmedAddressHexString {
+				return true
+			}
+
+		}
+
+	}
+
+	return false
 
 }

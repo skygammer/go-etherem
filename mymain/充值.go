@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -16,10 +17,10 @@ import (
 func postAccountDepositAPI(ginContextPointer *gin.Context) {
 
 	type Parameters struct {
-		Account    string
-		Address    string
-		PrivateKey string
-		Size       int
+		Account    string // 帳戶
+		Address    string // 來源地址
+		PrivateKey string // 來源私鑰
+		Size       int    // eth值
 	}
 
 	var parameters Parameters
@@ -45,12 +46,20 @@ func postAccountDepositAPI(ginContextPointer *gin.Context) {
 			log.Fatal(err)
 		} else {
 
+			toAddress := common.HexToAddress(toAddressHexString)
+
 			amount :=
 				bigIntObject.Mul(big.NewInt(int64(parameters.Size)), weisPerEthBigInt) // in wei (Size eth)
-			gasLimit := uint64(21000) // in units
-			data := []byte{}
 
-			if nonce, err :=
+			if gasLimit, err :=
+				ethHttpClientPointer.EstimateGas(
+					context.Background(),
+					ethereum.CallMsg{
+						To: &toAddress,
+					},
+				); err != nil {
+				log.Fatal(err)
+			} else if nonce, err :=
 				ethHttpClientPointer.PendingNonceAt(
 					context.Background(),
 					common.HexToAddress(fromAddressHexString),
@@ -64,7 +73,15 @@ func postAccountDepositAPI(ginContextPointer *gin.Context) {
 				log.Fatal(err)
 			} else {
 
-				transactionPointer := types.NewTransaction(nonce, common.HexToAddress(toAddressHexString), amount, gasLimit, gasPrice, data)
+				transactionPointer :=
+					types.NewTransaction(
+						nonce,
+						toAddress,
+						amount,
+						gasLimit,
+						gasPrice,
+						nil,
+					)
 
 				if signedTransactionPointer, err :=
 					types.SignTx(
@@ -73,7 +90,11 @@ func postAccountDepositAPI(ginContextPointer *gin.Context) {
 						privateKeyPointer,
 					); err != nil {
 					log.Fatal(err)
-				} else if err := ethHttpClientPointer.SendTransaction(context.Background(), signedTransactionPointer); err != nil {
+				} else if err :=
+					ethHttpClientPointer.SendTransaction(
+						context.Background(),
+						signedTransactionPointer,
+					); err != nil {
 					log.Fatal(err)
 				}
 

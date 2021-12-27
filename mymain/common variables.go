@@ -31,7 +31,7 @@ const (
 	ethHttpServerUrl = `http://localhost:7545`
 	ethWsServerUrl   = `ws://localhost:7545`
 	accountIndexMax  = 99
-	mnemonic         = `humble spy glance bitter oblige ready crane involve area sheriff carpet across`
+	mnemonic         = `marble spend energy negative egg agree cruise episode trust because hurt mutual`
 )
 
 // eth var

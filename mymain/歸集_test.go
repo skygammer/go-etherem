@@ -20,12 +20,9 @@ func Test_postAccountAccumulationAPI(t *testing.T) {
 	if requestPointer, err :=
 		http.NewRequest(
 			http.MethodPost,
-			`/account/withdrawal/ETH`,
-			bytes.NewBufferString(`
-				{
-					"Address":"0x7b2055Bb6c42704980Fb48064Bb3E24C292b9ED0"
-				}
-			`),
+			`/accumulation`,
+			bytes.NewBufferString(`{
+			}`),
 		); err != nil {
 		log.Fatal(err)
 	} else {

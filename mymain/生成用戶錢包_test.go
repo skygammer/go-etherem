@@ -1,6 +1,7 @@
 package mymain
 
 import (
+	"bytes"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -20,7 +21,43 @@ func Test_postAccountAPI(t *testing.T) {
 		http.NewRequest(
 			http.MethodPost,
 			`/account`,
-			nil,
+			bytes.NewBufferString(`
+				{
+					"Account":"alice"
+				}
+			`),
+		); err != nil {
+		log.Fatal(err)
+	} else {
+		router.ServeHTTP(responseRecorderPointer, requestPointer)
+		assert.Equal(t, http.StatusOK, responseRecorderPointer.Code)
+	}
+
+	if requestPointer, err :=
+		http.NewRequest(
+			http.MethodPost,
+			`/account`,
+			bytes.NewBufferString(`
+			{
+				"Account":"bob"
+			}
+		`),
+		); err != nil {
+		log.Fatal(err)
+	} else {
+		router.ServeHTTP(responseRecorderPointer, requestPointer)
+		assert.Equal(t, http.StatusOK, responseRecorderPointer.Code)
+	}
+
+	if requestPointer, err :=
+		http.NewRequest(
+			http.MethodPost,
+			`/account`,
+			bytes.NewBufferString(`
+		{
+			"Account":"charlie"
+		}
+	`),
 		); err != nil {
 		log.Fatal(err)
 	} else {

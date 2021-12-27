@@ -4,8 +4,11 @@ import (
 	"context"
 	"log"
 	"math/big"
+	"strings"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gin-gonic/gin"
 )
 
@@ -13,46 +16,67 @@ import (
 func postAccountDepositAPI(ginContextPointer *gin.Context) {
 
 	type Parameters struct {
-		Size int
+		Account    string
+		Address    string
+		PrivateKey string
+		Size       int
 	}
 
 	var parameters Parameters
 
 	if !isBindParametersPointerError(ginContextPointer, &parameters) {
 
-		privateKeyPointer := accountDatas[AccountSourceWalletIndex].PrivateKeyPointer
-		fromAddress := accountDatas[AccountSourceWalletIndex].AccountPointer.Address
-
-		toAddress := accountDatas[AccountWalletIndex].AccountPointer.Address
-
-		amount := bigIntObject.Mul(big.NewInt(int64(parameters.Size)), weisPerEthBigInt) // in wei (Size eth)
-		gasLimit := uint64(21000)                                                        // in units
-		data := []byte{}
-
-		if nonce, err :=
-			ethHttpClientPointer.PendingNonceAt(
-				context.Background(),
-				fromAddress,
-			); err != nil {
-			log.Fatal(err)
-		} else if gasPrice, err :=
-			ethHttpClientPointer.SuggestGasPrice(context.Background()); err != nil {
-			log.Fatal(err)
-		} else if chainID, err := ethHttpClientPointer.NetworkID(context.Background()); err != nil {
+		if parametersAccount :=
+			strings.ToLower(strings.TrimSpace(parameters.Account)); len(parametersAccount) == 0 {
+		} else if fromAddressHexString :=
+			strings.TrimSpace(parameters.Address); !isAddressHexStringLegal(fromAddressHexString) ||
+			len(
+				redisClientPointer.HGet(
+					addressToPrivateKeyString,
+					fromAddressHexString,
+				).Val(),
+			) > 0 {
+		} else if toAddressHexString :=
+			redisClientPointer.HGet(
+				accountToAddressString, parametersAccount,
+			).Val(); fromAddressHexString == toAddressHexString ||
+			!isAddressHexStringLegal(toAddressHexString) {
+		} else if privateKeyPointer, err := crypto.HexToECDSA(parameters.PrivateKey); err != nil {
 			log.Fatal(err)
 		} else {
 
-			transactionPointer := types.NewTransaction(nonce, toAddress, amount, gasLimit, gasPrice, data)
+			amount :=
+				bigIntObject.Mul(big.NewInt(int64(parameters.Size)), weisPerEthBigInt) // in wei (Size eth)
+			gasLimit := uint64(21000) // in units
+			data := []byte{}
 
-			if signedTransactionPointer, err :=
-				types.SignTx(
-					transactionPointer,
-					types.NewEIP155Signer(chainID),
-					privateKeyPointer,
+			if nonce, err :=
+				ethHttpClientPointer.PendingNonceAt(
+					context.Background(),
+					common.HexToAddress(fromAddressHexString),
 				); err != nil {
 				log.Fatal(err)
-			} else if err := ethHttpClientPointer.SendTransaction(context.Background(), signedTransactionPointer); err != nil {
+			} else if gasPrice, err :=
+				ethHttpClientPointer.SuggestGasPrice(context.Background()); err != nil {
 				log.Fatal(err)
+			} else if chainID, err :=
+				ethHttpClientPointer.NetworkID(context.Background()); err != nil {
+				log.Fatal(err)
+			} else {
+
+				transactionPointer := types.NewTransaction(nonce, common.HexToAddress(toAddressHexString), amount, gasLimit, gasPrice, data)
+
+				if signedTransactionPointer, err :=
+					types.SignTx(
+						transactionPointer,
+						types.NewEIP155Signer(chainID),
+						privateKeyPointer,
+					); err != nil {
+					log.Fatal(err)
+				} else if err := ethHttpClientPointer.SendTransaction(context.Background(), signedTransactionPointer); err != nil {
+					log.Fatal(err)
+				}
+
 			}
 
 		}

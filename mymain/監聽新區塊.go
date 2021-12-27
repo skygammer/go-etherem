@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/ethereum/go-ethereum/core/types"
@@ -34,7 +35,6 @@ func subscribeNewBlocks() {
 
 			signalChannel := make(chan os.Signal, 1)                    // channel for interrupt
 			signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM) // notify interrupts
-			isDoneChannel := make(chan bool, 1)                         // channel for is done
 
 			for {
 
@@ -47,6 +47,8 @@ func subscribeNewBlocks() {
 					}
 
 				case header := <-headerChannel:
+
+					isUndoneChannel <- true
 
 					for currentBlockNumber := nextBlockNumber; currentBlockNumber <= header.Number.Int64(); currentBlockNumber++ {
 
@@ -73,7 +75,8 @@ func subscribeNewBlocks() {
 
 									toAddressHex := toAddress.Hex()
 
-									if *toAddress == accountDatas[AccountWalletIndex].AccountPointer.Address {
+									if len(strings.TrimSpace(redisClientPointer.HGet(addressToPrivateKeyString, fromAddressHex).Val())) == 0 &&
+										len(strings.TrimSpace(redisClientPointer.HGet(addressToPrivateKeyString, toAddressHex).Val())) > 0 {
 
 										// 生成transfer消息并发送到队列的deposit主题(redis 中 stream数据)
 										if err :=
@@ -82,6 +85,7 @@ func subscribeNewBlocks() {
 													Stream: redisStreamKeys[DepositIndex],
 													ID:     `*`,
 													Values: map[string]interface{}{
+														`from`:     fromAddressHex,
 														`to`:       toAddressHex,
 														`eth_size`: valueInETHString,
 													},
@@ -89,8 +93,8 @@ func subscribeNewBlocks() {
 											log.Fatal(err)
 										}
 
-									} else if fromAddress ==
-										accountDatas[HotWalletIndex].AccountPointer.Address {
+									} else if fromAddressHex ==
+										specialWalletAddressHexes[HotWalletIndex] {
 
 										// 生成transfer消息并发送到队列的withdraw主题(redis 中 stream数据)
 										if err :=
@@ -107,8 +111,8 @@ func subscribeNewBlocks() {
 											log.Fatal(err)
 										}
 
-									} else if fromAddress ==
-										accountDatas[AccountWalletIndex].AccountPointer.Address {
+									} else if fromAddressHex ==
+										specialWalletAddressHexes[CollectionIndex] {
 
 										// 生成transfer消息并发送到队列的collection主题(redis 中 stream数据)
 										if err :=
@@ -142,14 +146,13 @@ func subscribeNewBlocks() {
 
 					}
 
-					isDoneChannel <- true
+					<-isUndoneChannel
 
 				case signal := <-signalChannel:
 					log.Println(signal)
 					subscription.Unsubscribe()
 
-					for len(isDoneChannel) != 0 {
-						<-isDoneChannel
+					for len(isUndoneChannel) != 0 {
 					}
 
 					return

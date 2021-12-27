@@ -1,32 +1,18 @@
 package mymain
 
 import (
-	"crypto/ecdsa"
 	"math"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/go-redis/redis"
 )
 
-// 用戶資料
-type AccountData struct {
-	Mnemonic            string            // 助記詞
-	DerivationPathIndex int               // 導出路徑編號
-	PrivateKeyString    string            // 私鑰字串
-	PrivateKeyPointer   *ecdsa.PrivateKey // 私鑰指標
-	PublicKeyPointer    *ecdsa.PublicKey  // 公鑰指標
-	AccountPointer      *accounts.Account // 帳戶指標
-}
-
 const (
-	AccountSourceWalletIndex = iota // 用戶來源錢包
-	AccountWalletIndex              //用戶錢包
-	AccumulationWalletIndex         //歸集錢包
-	HotWalletIndex                  //熱錢包
-	SystemColdWalletIndex           //系統冷錢包
-	BossColdWalletIndex             //boss冷錢包
+	AccumulationWalletIndex = iota //歸集錢包
+	HotWalletIndex                 //熱錢包
+	SystemColdWalletIndex          //系統冷錢包
+	BossColdWalletIndex            //boss冷錢包
 )
 
 const (
@@ -37,6 +23,19 @@ const (
 )
 
 var (
+	isUndoneChannel = make(chan bool, 100) // channel for is-undone's
+)
+
+// eth const
+const (
+	ethHttpServerUrl = `http://localhost:7545`
+	ethWsServerUrl   = `ws://localhost:7545`
+	accountIndexMax  = 99
+	mnemonic         = `humble spy glance bitter oblige ready crane involve area sheriff carpet across`
+)
+
+// eth var
+var (
 
 	// eth http 客戶端指標
 	ethHttpClientPointer *ethclient.Client
@@ -44,17 +43,26 @@ var (
 	// eth websocket 客戶端指標
 	ethWebsocketClientPointer *ethclient.Client
 
+	// 特殊錢包16進位地址
+	specialWalletAddressHexes = make([]string, 4)
+)
+
+// redis const
+const (
+	redisServerUrl            = `localhost:6379`
+	accountToAddressString    = `account-address`
+	addressToPrivateKeyString = `address-privateKey`
+)
+
+// redis var
+var (
+
 	// redis 客戶端指標
 	redisClientPointer = redis.NewClient(
 		&redis.Options{
-			Addr:     `localhost:6379`, // redis地址
-			Password: ``,               // redis密码，没有则留空
-			DB:       0,                // 默认数据库，默认是0
+			Addr: redisServerUrl, // redis地址
 		},
 	)
-
-	// 編號-帳戶資料對應
-	accountDatas = make([]AccountData, 6)
 
 	// redis列表關鍵字
 	redisStreamKeys = []string{

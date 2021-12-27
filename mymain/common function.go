@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"regexp"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -30,84 +31,42 @@ func setupRouter() *gin.Engine {
 // 初始化
 func initialize() {
 
-	// 用戶來源錢包
-	accountDatas[AccountSourceWalletIndex] =
-		AccountData{
-			// Mnemonic:         `resist apart surround clinic ivory arrow decide company nut gentle broom taste`,
-			DerivationPathIndex: AccountSourceWalletIndex,
-			PrivateKeyString:    `c0effed41fc8f8539e0fc88fadc27a13b8f669dc21ebcea6a0d75341e811f0c1`,
-		}
-
-	// 用戶錢包
-	accountDatas[AccountWalletIndex] =
-		AccountData{
-			// Mnemonic:         `resist apart surround clinic ivory arrow decide company nut gentle broom taste`,
-			DerivationPathIndex: AccountWalletIndex,
-			PrivateKeyString:    `aeabbb9d31fe1be71d93d62f9cb1e6e4bece078ca408ed3dd6af31cea18b46c9`,
-		}
-
 	// 歸集錢包
-	accountDatas[AccumulationWalletIndex] =
-		AccountData{
-			// Mnemonic:         `essence impulse number there double bottom phrase wink foster stamp affair three`,
-			DerivationPathIndex: AccountSourceWalletIndex,
-			PrivateKeyString:    `d7b173f29b262428fd8d732014aa6d81bc4cc52059d72be1142c73080d63b3e8`,
-		}
+	specialWalletAddressHexes[AccumulationWalletIndex] =
+		getAccountPointerByMnemonicStringAndDerivationPathIndex(
+			mnemonic,
+			accountIndexMax-AccountCreatedIndex,
+		).Address.Hex()
 
 	//熱錢包
-	accountDatas[HotWalletIndex] =
-		AccountData{
-			// Mnemonic:         `laundry antenna erupt galaxy tattoo test okay laptop endless reject trend planet`,
-			DerivationPathIndex: HotWalletIndex,
-			PrivateKeyString:    `4119ac2270a283f5df917fde1b79b7602f0e02406bf9db0ceeb4940bb62e7423`,
-		}
+	specialWalletAddressHexes[HotWalletIndex] =
+		getAccountPointerByMnemonicStringAndDerivationPathIndex(
+			mnemonic, accountIndexMax-HotWalletIndex,
+		).Address.Hex()
 
 	// 系統冷錢包
-	accountDatas[SystemColdWalletIndex] =
-		AccountData{
-			// Mnemonic:         `scheme inject column require story gown rabbit escape movie forward hybrid place`,
-			DerivationPathIndex: SystemColdWalletIndex,
-			PrivateKeyString:    `b4cf32bc28145bf754720276d03752a46f85f72d2436ba7375209afca258d3e3`,
-		}
+	specialWalletAddressHexes[SystemColdWalletIndex] =
+		getAccountPointerByMnemonicStringAndDerivationPathIndex(
+			mnemonic,
+			accountIndexMax-SystemColdWalletIndex,
+		).Address.Hex()
 
 	// boss冷錢包
-	accountDatas[BossColdWalletIndex] =
-		AccountData{
-			// Mnemonic:         `grace bring evoke proud endless figure convince ready acid afford plastic disagree`,
-			DerivationPathIndex: BossColdWalletIndex,
-			PrivateKeyString:    `8b06558092942ad8e1a90b43360babbb1cd8416e0348f53458464a871877528d`,
-		}
-
-	for index, value := range accountDatas {
-
-		// 助記詞
-		value.Mnemonic = `length frame sorry say hockey simple tired document sing mail melt estate`
-
-		// 私鑰指標
-		value.PrivateKeyPointer = getPrivateKeyPointerFromPrivateKeyString(value.PrivateKeyString)
-
-		// 公鑰指標
-		value.PublicKeyPointer = getPublicKeyPointerFromPrivateKeyString(value.PrivateKeyString)
-
-		// 帳戶指標
-		value.AccountPointer =
-			getAccountPointerByMnemonicStringAndDerivationPathIndex(
-				value.Mnemonic,
-				value.DerivationPathIndex,
-			)
-
-		accountDatas[index] = value
-	}
+	specialWalletAddressHexes[BossColdWalletIndex] =
+		getAccountPointerByMnemonicStringAndDerivationPathIndex(
+			mnemonic,
+			accountIndexMax-BossColdWalletIndex,
+		).Address.Hex()
 
 	// eth http 客戶端指標
-	if thisEthHttpClientPointer, err := ethclient.Dial(`http://localhost:7545`); err != nil {
+	if thisEthHttpClientPointer, err := ethclient.Dial(ethHttpServerUrl); err != nil {
 		log.Fatal(err)
 	} else {
 		ethHttpClientPointer = thisEthHttpClientPointer
 	}
 
 	// eth websocket 客戶端指標
-	if thisEthWebsocketClientPointer, err := ethclient.Dial(`ws://localhost:7545`); err != nil {
+	if thisEthWebsocketClientPointer, err := ethclient.Dial(ethWsServerUrl); err != nil {
 		log.Fatal(err)
 	} else {
 		ethWebsocketClientPointer = thisEthWebsocketClientPointer
@@ -128,6 +87,51 @@ func getAccountPointerByMnemonicStringAndDerivationPathIndex(mnemonicString stri
 
 }
 
+// 依據助記詞取得錢包指標
+func getWalletPointerByMnemonicString(mnemonicString string) *hdwallet.Wallet {
+
+	walletPointer, err := hdwallet.NewFromMnemonic(mnemonicString)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return walletPointer
+}
+
+// 依據助記詞、推導路徑索引取得錢包指標、帳戶指標
+func getWalletPointerAndAccountPointerByMnemonicStringAndDerivationPathIndex(mnemonicString string, derivationPathIndex int) (*hdwallet.Wallet, *accounts.Account) {
+
+	return getWalletPointerAndAccountPointerByMnemonicStringAndDerivationPathString(
+		mnemonicString,
+		fmt.Sprintf(
+			`m/44'/60'/0'/0/%d`,
+			derivationPathIndex,
+		),
+	)
+
+}
+
+// 依據助記詞、推導路徑取得錢包指標、帳戶指標
+func getWalletPointerAndAccountPointerByMnemonicStringAndDerivationPathString(mnemonicString string, derivationPathString string) (*hdwallet.Wallet, *accounts.Account) {
+
+	walletPointer := getWalletPointerByMnemonicString(mnemonicString)
+
+	if walletPointer != nil {
+
+		if derivationPath, err := hdwallet.ParseDerivationPath(derivationPathString); err != nil {
+			log.Fatal(err)
+		} else if account, err := walletPointer.Derive(derivationPath, false); err != nil {
+			log.Fatal(err)
+		} else {
+			return walletPointer, &account
+		}
+
+	}
+	return walletPointer, nil
+
+}
+
 // 依據助記詞、推導路徑取得帳戶
 func getAccountPointerByMnemonicStringAndDerivationPathString(mnemonicString string, derivationPathString string) *accounts.Account {
 
@@ -143,6 +147,10 @@ func getAccountPointerByMnemonicStringAndDerivationPathString(mnemonicString str
 
 	return nil
 
+}
+
+func isAddressHexStringLegal(addressString string) bool {
+	return regexp.MustCompile(`^0x[0-9a-fA-F]{40}$`).MatchString(addressString)
 }
 
 func getPrivateKeyPointerFromPrivateKeyString(privateKeyString string) *ecdsa.PrivateKey {

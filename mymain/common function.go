@@ -73,6 +73,7 @@ func initialize() {
 		ethWebsocketClientPointer = thisEthWebsocketClientPointer
 	}
 
+	rootCommand.Execute()
 }
 
 // 依據助記詞、推導路徑索引取得帳戶

@@ -1,11 +1,32 @@
 package mymain
 
 import (
+	"errors"
 	"math"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/go-redis/redis"
+	"github.com/spf13/cobra"
+)
+
+var (
+	rootCommand = &cobra.Command{
+		Args: func(cmd *cobra.Command, args []string) error {
+
+			if len(args) != 1 {
+				return errors.New("one argument required")
+			} else if len(args[0]) != 8 {
+				return errors.New("key for DES encryption/descryption should be in 64 bits")
+			} else {
+				return nil
+			}
+
+		},
+		Run: func(cmd *cobra.Command, args []string) {
+			desKey = args[0]
+		},
+	}
 )
 
 const (
@@ -54,11 +75,11 @@ const (
 	userNamespaceConstString = `User`
 	userAddressFieldName     = `address`
 	userPrivateKeyFieldName  = `private key`
-	desKey                   = `12345678`
 )
 
 // redis var
 var (
+	desKey string
 
 	// redis 客戶端指標
 	redisClientPointer = redis.NewClient(

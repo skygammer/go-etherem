@@ -31,17 +31,14 @@ func postAccountDepositAPI(ginContextPointer *gin.Context) {
 			strings.ToLower(strings.TrimSpace(parameters.Account)); len(parametersAccount) == 0 {
 		} else if fromAddressHexString :=
 			strings.TrimSpace(parameters.Address); !isAddressHexStringLegal(fromAddressHexString) ||
-			len(
-				redisClientPointer.HGet(
-					addressToPrivateKeyString,
-					fromAddressHexString,
-				).Val(),
-			) > 0 {
+			isUserAccountAddressHexString(fromAddressHexString) {
 		} else if toAddressHexString :=
 			redisClientPointer.HGet(
-				accountToAddressString, parametersAccount,
+				getUserKey(parametersAccount),
+				userAddressFieldName,
 			).Val(); fromAddressHexString == toAddressHexString ||
-			!isAddressHexStringLegal(toAddressHexString) {
+			!isAddressHexStringLegal(toAddressHexString) ||
+			!isUserAccountAddressHexString(toAddressHexString) {
 		} else if privateKeyPointer, err := crypto.HexToECDSA(parameters.PrivateKey); err != nil {
 			log.Fatal(err)
 		} else {
@@ -49,7 +46,10 @@ func postAccountDepositAPI(ginContextPointer *gin.Context) {
 			toAddress := common.HexToAddress(toAddressHexString)
 
 			amount :=
-				bigIntObject.Mul(big.NewInt(int64(parameters.Size)), weisPerEthBigInt) // in wei (Size eth)
+				bigIntObject.Mul(
+					big.NewInt(int64(parameters.Size)),
+					weisPerEthBigInt,
+				) // in wei (Size eth)
 
 			if gasLimit, err :=
 				ethHttpClientPointer.EstimateGas(

@@ -114,8 +114,8 @@ func subscribeNewBlocks() {
 											log.Fatal(err)
 										}
 
-									} else if !isInternalAccountAddressHexString(fromAddressHex) &&
-										isInternalAccountAddressHexString(toAddressHex) {
+									} else if !isUserAccountAddressHexString(fromAddressHex) &&
+										isUserAccountAddressHexString(toAddressHex) {
 
 										// 生成transfer消息并发送到队列的deposit主题(redis 中 stream数据)
 										if err :=

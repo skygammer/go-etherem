@@ -32,7 +32,7 @@ const (
 	ethHttpServerUrl = `http://localhost:7545`
 	ethWsServerUrl   = `ws://localhost:7545`
 	accountIndexMax  = 99
-	mnemonic         = `marble spend energy negative egg agree cruise episode trust because hurt mutual`
+	mnemonic         = `cash village area early major output rubber snow boost amateur option vault`
 )
 
 // eth var
@@ -50,9 +50,11 @@ var (
 
 // redis const
 const (
-	redisServerUrl            = `localhost:6379`
-	accountToAddressString    = `account-address`
-	addressToPrivateKeyString = `address-privateKey`
+	redisServerUrl           = `localhost:6379`
+	userNamespaceConstString = `User`
+	userAddressFieldName     = `address`
+	userPrivateKeyFieldName  = `private key`
+	desKey                   = `12345678`
 )
 
 // redis var

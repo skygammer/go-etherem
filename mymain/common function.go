@@ -2,7 +2,8 @@ package mymain
 
 import (
 	"bytes"
-	"crypto/ecdsa"
+	"crypto/cipher"
+	"crypto/des"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -11,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/gin-gonic/gin"
 	hdwallet "github.com/miguelmota/go-ethereum-hdwallet"
@@ -21,7 +21,7 @@ import (
 func setupRouter() *gin.Engine {
 
 	router := gin.Default()
-	router.POST(`/account`, postAccountAPI)
+	router.POST(`/user`, postUserAPI)
 	router.POST(`/account/deposit/ETH`, postAccountDepositAPI)
 	router.POST(`/account/withdrawal/ETH`, postAccountWithdrawalAPI)
 	router.POST(`/accumulation`, postAccountAccumulationAPI)
@@ -154,30 +154,6 @@ func isAddressHexStringLegal(addressString string) bool {
 	return regexp.MustCompile(`^0x[0-9a-fA-F]{40}$`).MatchString(addressString)
 }
 
-func getPrivateKeyPointerFromPrivateKeyString(privateKeyString string) *ecdsa.PrivateKey {
-
-	if privateKeyPointer, err := crypto.HexToECDSA(privateKeyString); err != nil {
-		log.Fatal(err)
-		return nil
-	} else {
-		return privateKeyPointer
-	}
-
-}
-
-func getPublicKeyPointerFromPrivateKeyString(privateKeyString string) *ecdsa.PublicKey {
-
-	if privateKeyPointer := getPrivateKeyPointerFromPrivateKeyString(privateKeyString); privateKeyPointer == nil {
-		return nil
-	} else if publicKeyPointer, ok := privateKeyPointer.Public().(*ecdsa.PublicKey); !ok {
-		log.Fatal("cannot assert type: publicKey is not of type *ecdsa.PublicKey")
-		return nil
-	} else {
-		return publicKeyPointer
-	}
-
-}
-
 // isBindParametersPointerError - 判斷是否綁定參數指標錯誤
 func isBindParametersPointerError(ginContextPointer *gin.Context, parametersPointer interface{}) bool {
 
@@ -240,24 +216,52 @@ func printRedisStreams() {
 
 }
 
-// 判斷是否為內部帳戶
-func isInternalAccount(accountString string) bool {
+// 取得User關鍵字
+func getUserKey(userString string) string {
 
-	trimmedAccountString := strings.TrimSpace(accountString)
+	trimmedUserString := strings.TrimSpace(userString)
 
-	return len(trimmedAccountString) > 0 &&
-		redisClientPointer.HExists(accountToAddressString, trimmedAccountString).Val()
+	if len(trimmedUserString) > 0 {
+		return fmt.Sprintf(
+			`%s:%s`,
+			userNamespaceConstString,
+			strings.TrimSpace(userString),
+		)
+	} else {
+		return ``
+	}
+
 }
 
-// 判斷是否為內部帳戶hex地址字串
-func isInternalAccountAddressHexString(addressHexString string) bool {
+// 判斷是否為使用者
+func isUser(userString string) bool {
+
+	trimmedUserString := strings.TrimSpace(userString)
+
+	return len(trimmedUserString) > 0 &&
+		len(
+			redisClientPointer.HKeys(
+				getUserKey(trimmedUserString),
+			).Val(),
+		) > 0
+}
+
+// 判斷是否為使用者帳戶hex地址字串
+func isUserAccountAddressHexString(addressHexString string) bool {
 
 	if trimmedAddressHexString :=
 		strings.TrimSpace(addressHexString); isAddressHexStringLegal(trimmedAddressHexString) {
 
-		for _, value := range redisClientPointer.HVals(accountToAddressString).Val() {
+		keys, _ := redisClientPointer.Scan(
+			0,
+			getUserKey(`*`),
+			0,
+		).Val()
 
-			if value == trimmedAddressHexString {
+		for _, key := range keys {
+
+			if redisClientPointer.HGet(key, userAddressFieldName).Val() ==
+				trimmedAddressHexString {
 				return true
 			}
 
@@ -267,4 +271,47 @@ func isInternalAccountAddressHexString(addressHexString string) bool {
 
 	return false
 
+}
+
+// 填充
+func padding(src []byte, blocksize int) []byte {
+	n := len(src)
+	padnum := blocksize - n%blocksize
+	pad := bytes.Repeat([]byte{byte(padnum)}, padnum)
+	dst := append(src, pad...)
+	return dst
+}
+
+// 反填充
+func unpadding(src []byte) []byte {
+	n := len(src)
+	unpadnum := int(src[n-1])
+	dst := src[:n-unpadnum]
+	return dst
+}
+
+// DES 加密
+func encryptDES(src []byte, key []byte) []byte {
+
+	if block, err := des.NewCipher(key); err != nil {
+		log.Fatal(err)
+	} else {
+		src = padding(src, block.BlockSize())
+		cipher.NewCBCEncrypter(block, key).CryptBlocks(src, src)
+	}
+
+	return src
+}
+
+// DES 解密
+func decryptDES(src []byte, key []byte) []byte {
+
+	if block, err := des.NewCipher(key); err != nil {
+		log.Fatal(err)
+	} else {
+		cipher.NewCBCDecrypter(block, key).CryptBlocks(src, src)
+		src = unpadding(src)
+	}
+
+	return src
 }

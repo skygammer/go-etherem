@@ -2,6 +2,7 @@ package mymain
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -16,32 +17,24 @@ func Test_postAccountAPI(t *testing.T) {
 
 	router := setupRouter()
 	responseRecorderPointer := httptest.NewRecorder()
-
-	if requestPointer, err :=
-		http.NewRequest(
-			http.MethodPost,
-			`/account`,
-			bytes.NewBufferString(`
-				{
-					"Account":"alice"
-				}
-			`),
-		); err != nil {
-		log.Fatal(err)
-	} else {
-		router.ServeHTTP(responseRecorderPointer, requestPointer)
-		assert.Equal(t, http.StatusOK, responseRecorderPointer.Code)
-	}
-
-	if requestPointer, err :=
-		http.NewRequest(
-			http.MethodPost,
-			`/account`,
-			bytes.NewBufferString(`
+	apiPathString := `/user`
+	formatString :=
+		`
 			{
-				"Account":"bob"
+				"User":"%s"
 			}
-		`),
+		`
+
+	if requestPointer, err :=
+		http.NewRequest(
+			http.MethodPost,
+			apiPathString,
+			bytes.NewBufferString(
+				fmt.Sprintf(
+					formatString,
+					`alice`,
+				),
+			),
 		); err != nil {
 		log.Fatal(err)
 	} else {
@@ -52,12 +45,30 @@ func Test_postAccountAPI(t *testing.T) {
 	if requestPointer, err :=
 		http.NewRequest(
 			http.MethodPost,
-			`/account`,
-			bytes.NewBufferString(`
-		{
-			"Account":"charlie"
-		}
-	`),
+			apiPathString,
+			bytes.NewBufferString(
+				fmt.Sprintf(
+					formatString,
+					`bob`,
+				),
+			),
+		); err != nil {
+		log.Fatal(err)
+	} else {
+		router.ServeHTTP(responseRecorderPointer, requestPointer)
+		assert.Equal(t, http.StatusOK, responseRecorderPointer.Code)
+	}
+
+	if requestPointer, err :=
+		http.NewRequest(
+			http.MethodPost,
+			apiPathString,
+			bytes.NewBufferString(
+				fmt.Sprintf(
+					formatString,
+					`charlie`,
+				),
+			),
 		); err != nil {
 		log.Fatal(err)
 	} else {

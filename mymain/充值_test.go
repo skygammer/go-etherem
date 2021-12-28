@@ -17,6 +17,16 @@ func Test_postAccountDepositAPI(t *testing.T) {
 
 	router := setupRouter()
 	responseRecorderPointer := httptest.NewRecorder()
+	apiPathString := `/account/deposit/ETH`
+	formatString :=
+		`
+		{
+			"Account":"alice",
+			"Address":"%s",
+			"PrivateKey":"%s",
+			"Size":1
+		}
+	`
 
 	if walletPointer, accountPointer :=
 		getWalletPointerAndAccountPointerByMnemonicStringAndDerivationPathIndex(mnemonic, 0); walletPointer != nil && accountPointer != nil {
@@ -26,16 +36,10 @@ func Test_postAccountDepositAPI(t *testing.T) {
 		} else if requestPointer, err :=
 			http.NewRequest(
 				http.MethodPost,
-				`/account/deposit/ETH`,
+				apiPathString,
 				bytes.NewBufferString(
-					fmt.Sprintf(`
-						{
-							"Account":"alice",
-							"Address":"%s",
-							"PrivateKey":"%s",
-							"Size":1
-						}
-					`,
+					fmt.Sprintf(
+						formatString,
 						accountPointer.Address.Hex(),
 						privateKeyHexString,
 					),
@@ -57,16 +61,10 @@ func Test_postAccountDepositAPI(t *testing.T) {
 		} else if requestPointer, err :=
 			http.NewRequest(
 				http.MethodPost,
-				`/account/deposit/ETH`,
+				apiPathString,
 				bytes.NewBufferString(
-					fmt.Sprintf(`
-					{
-						"Account":"alice",
-						"Address":"%s",
-						"PrivateKey":"%s",
-						"Size":1
-					}
-				`,
+					fmt.Sprintf(
+						formatString,
 						accountPointer.Address.Hex(),
 						privateKeyHexString,
 					),
@@ -88,16 +86,10 @@ func Test_postAccountDepositAPI(t *testing.T) {
 		} else if requestPointer, err :=
 			http.NewRequest(
 				http.MethodPost,
-				`/account/deposit/ETH`,
+				apiPathString,
 				bytes.NewBufferString(
-					fmt.Sprintf(`
-						{
-							"Account":"alice",
-							"Address":"%s",
-							"PrivateKey":"%s",
-							"Size":1
-						}
-					`,
+					fmt.Sprintf(
+						formatString,
 						accountPointer.Address.Hex(),
 						privateKeyHexString,
 					),

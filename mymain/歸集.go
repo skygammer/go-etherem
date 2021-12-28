@@ -38,16 +38,30 @@ func postAccountAccumulationAPI(ginContextPointer *gin.Context) {
 			log.Fatal(err)
 		} else {
 
-			for _, fromAddressHexString := range redisClientPointer.HVals(accountToAddressString).Val() {
+			keys, _ := redisClientPointer.Scan(
+				0,
+				getUserKey(`*`),
+				0,
+			).Val()
 
+			for _, key := range keys {
+
+				fromAddressHexString := redisClientPointer.HGet(key, userAddressFieldName).Val()
 				fromAddress := common.HexToAddress(fromAddressHexString)
 
-				if privateKeyPointer, err :=
+				if privateKeyBytes, err := redisClientPointer.HGet(
+					key,
+					userPrivateKeyFieldName,
+				).Bytes(); err != nil {
+					log.Fatal(err)
+				} else if privateKeyPointer, err :=
 					crypto.HexToECDSA(
-						redisClientPointer.HGet(
-							addressToPrivateKeyString,
-							fromAddressHexString,
-						).Val(),
+						string(
+							decryptDES(
+								privateKeyBytes,
+								[]byte(desKey),
+							),
+						),
 					); err != nil {
 					log.Fatal(err)
 				} else if amount, err :=
@@ -91,7 +105,11 @@ func postAccountAccumulationAPI(ginContextPointer *gin.Context) {
 							privateKeyPointer,
 						); err != nil {
 						log.Fatal(err)
-					} else if err := ethHttpClientPointer.SendTransaction(context.Background(), signedTransactionPointer); err != nil {
+					} else if err :=
+						ethHttpClientPointer.SendTransaction(
+							context.Background(),
+							signedTransactionPointer,
+						); err != nil {
 						log.Fatal(err)
 					}
 

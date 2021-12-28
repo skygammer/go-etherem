@@ -8,33 +8,33 @@ import (
 	"github.com/go-redis/redis"
 )
 
-// API 生成用户钱包
-func postAccountAPI(ginContextPointer *gin.Context) {
+// API 生成用户
+func postUserAPI(ginContextPointer *gin.Context) {
 
 	isUndoneChannel <- true
 
 	type Parameters struct {
-		Account string // 新增帳戶
+		User string // 新增使用者
 	}
 
 	var parameters Parameters
 
 	if !isBindParametersPointerError(ginContextPointer, &parameters) {
 
-		if parametersAccount :=
-			strings.ToLower(strings.TrimSpace(parameters.Account)); !isInternalAccount(parametersAccount) {
+		if parametersUser :=
+			strings.ToLower(strings.TrimSpace(parameters.User)); !isUser(parametersUser) {
 
 			const (
-				nextAccountIndexString = `Next Account Index`
+				nextUserIndexString = `Next User Index`
 			)
 
-			if nextAccountIndexNumber, err :=
-				redisClientPointer.Get(nextAccountIndexString).Int64(); err != nil && err != redis.Nil {
+			if nextUserIndexNumber, err :=
+				redisClientPointer.Get(nextUserIndexString).Int64(); err != nil && err != redis.Nil {
 				log.Fatal(err)
 			} else if walletPointer, accountPointer :=
 				getWalletPointerAndAccountPointerByMnemonicStringAndDerivationPathIndex(
 					mnemonic,
-					int(nextAccountIndexNumber),
+					int(nextUserIndexNumber),
 				); walletPointer == nil || accountPointer == nil {
 			} else if accountPrivateKeyHexString, err :=
 				walletPointer.PrivateKeyHex(*accountPointer); err != nil {
@@ -45,24 +45,15 @@ func postAccountAPI(ginContextPointer *gin.Context) {
 
 				log.Println(
 					redisClientPointer.HMSet(
-						accountToAddressString,
+						getUserKey(parametersUser),
 						map[string]interface{}{
-							parametersAccount: accountAddressHexString,
+							userAddressFieldName:    accountAddressHexString,
+							userPrivateKeyFieldName: encryptDES([]byte(accountPrivateKeyHexString), []byte(desKey)),
 						},
 					),
 				)
 
-				// 创建新的密钥对并存入密码库，(redis中hash数据)
-				log.Println(
-					redisClientPointer.HMSet(
-						addressToPrivateKeyString,
-						map[string]interface{}{
-							accountAddressHexString: accountPrivateKeyHexString,
-						},
-					),
-				)
-
-				redisClientPointer.Set(nextAccountIndexString, nextAccountIndexNumber+1, 0)
+				redisClientPointer.Set(nextUserIndexString, nextUserIndexNumber+1, 0)
 
 				// 生成account_created消息并发送到队列的account_created主题(redis 中 stream数据)
 				if err :=
@@ -71,8 +62,8 @@ func postAccountAPI(ginContextPointer *gin.Context) {
 							Stream: redisStreamKeys[AccountCreatedIndex],
 							ID:     `*`,
 							Values: map[string]interface{}{
-								`account`: parametersAccount,
-								`address`: accountPointer.Address.Hex(),
+								`user`:    parametersUser,
+								`address`: accountAddressHexString,
 							},
 						}).Err(); err != nil {
 					log.Fatal(err)

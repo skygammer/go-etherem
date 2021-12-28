@@ -2,6 +2,7 @@ package mymain
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -10,30 +11,54 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_postAccountAccumulationAPI(t *testing.T) {
+func Test_isUserAccountAddressHexString(t *testing.T) {
 
 	initialize()
 
 	router := setupRouter()
 	responseRecorderPointer := httptest.NewRecorder()
-	apiPathString := `/accumulation`
+	apiPathString := `/user`
 	formatString :=
 		`
 			{
+				"User":"%s"
 			}
 		`
+	user := `evan`
 
 	if requestPointer, err :=
 		http.NewRequest(
 			http.MethodPost,
 			apiPathString,
 			bytes.NewBufferString(
-				formatString,
+				fmt.Sprintf(
+					formatString,
+					user,
+				),
 			),
 		); err != nil {
 		log.Fatal(err)
 	} else {
 		router.ServeHTTP(responseRecorderPointer, requestPointer)
-		assert.Equal(t, http.StatusOK, responseRecorderPointer.Code)
+
+		assert.Equal(
+			t,
+			true,
+			isUserAccountAddressHexString(
+				redisClientPointer.HGet(
+					getUserKey(user),
+					userAddressFieldName,
+				).Val(),
+			),
+		)
+
+		assert.Equal(
+			t,
+			false,
+			isUserAccountAddressHexString(
+				specialWalletAddressHexes[AccumulationWalletIndex],
+			),
+		)
+
 	}
 }

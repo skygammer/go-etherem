@@ -63,21 +63,54 @@ func subscribeNewBlocks() {
 							log.Fatal(err)
 						} else {
 
+							transactionBlockNumber := block.Number()
+
 							for _, tx := range block.Transactions() {
 
 								if toAddressPointer := tx.To(); toAddressPointer == nil {
 								} else if fromAddress, err :=
 									types.Sender(types.NewEIP2930Signer(tx.ChainId()), tx); err != nil {
 									log.Fatal(err)
+								} else if lastFromBalance, fromBalance, err :=
+									getLatestTwoBalances(fromAddress, transactionBlockNumber); err != nil {
+									log.Fatal(err)
+								} else if lastToBalance, toBalance, err :=
+									getLatestTwoBalances(*toAddressPointer, transactionBlockNumber); err != nil {
+									log.Fatal(err)
 								} else {
 
 									transactionHashHexString := tx.Hash().Hex()
-									valueString := tx.Value().String()
+
+									value := tx.Value()
+									valueString := value.String()
 
 									fromAddressHex := fromAddress.Hex()
 
 									toAddress := *toAddressPointer
 									toAddressHex := toAddress.Hex()
+
+									blockTime := block.Time()
+
+									isCompleted :=
+										big.NewInt(0).
+											Sub(
+												lastFromBalance,
+												fromBalance,
+											).
+											Cmp(
+												big.NewInt(0).
+													Add(
+														value,
+														big.NewInt(int64(tx.Gas())),
+													),
+											) == 0 &&
+											big.NewInt(0).
+												Sub(
+													toBalance,
+													lastToBalance,
+												).Cmp(
+												value,
+											) == 0
 
 									commonRedisXAddArgs :=
 										redis.XAddArgs{
@@ -87,8 +120,8 @@ func subscribeNewBlocks() {
 												`from`:      fromAddressHex,
 												`to`:        toAddressHex,
 												`value`:     valueString,
-												`time`:      block.Time(),
-												`completed`: true,
+												`time`:      blockTime,
+												`completed`: isCompleted,
 											},
 										}
 
@@ -129,8 +162,8 @@ func subscribeNewBlocks() {
 													`from`:      fromAddressHex,
 													`to`:        toAddressHex,
 													`value`:     valueString,
-													`time`:      block.Time(),
-													`completed`: true,
+													`time`:      blockTime,
+													`completed`: isCompleted,
 												},
 											),
 										)

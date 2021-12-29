@@ -2,16 +2,19 @@ package mymain
 
 import (
 	"bytes"
+	"context"
 	"crypto/cipher"
 	"crypto/des"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/big"
 	"net/http"
 	"regexp"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/gin-gonic/gin"
 	hdwallet "github.com/miguelmota/go-ethereum-hdwallet"
@@ -342,4 +345,31 @@ func getTransactionKey(hashHexString string) string {
 		return ``
 	}
 
+}
+
+// 取得最新兩筆餘額
+func getLatestTwoBalances(
+	address common.Address,
+	blockNumber *big.Int) (lastBalance *big.Int, balance *big.Int, err error) {
+
+	lastBlockNumber := big.NewInt(0).Sub(blockNumber, big.NewInt(1))
+
+	if lastBalance, err =
+		ethHttpClientPointer.BalanceAt(
+			context.Background(),
+			address,
+			lastBlockNumber,
+		); err != nil {
+	} else {
+
+		balance, err =
+			ethHttpClientPointer.BalanceAt(
+				context.Background(),
+				address,
+				blockNumber,
+			)
+
+	}
+
+	return
 }

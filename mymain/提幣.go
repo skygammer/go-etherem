@@ -89,35 +89,10 @@ func postAccountWithdrawalAPI(ginContextPointer *gin.Context) {
 				} else {
 
 					transactionBlockNumber := receiptPointer.BlockNumber
-					lastTransactionBlockNumber := big.NewInt(transactionBlockNumber.Int64() - 1)
 
-					if lastFromBalance, err :=
-						ethHttpClientPointer.BalanceAt(
-							context.Background(),
-							fromAddress,
-							lastTransactionBlockNumber,
-						); err != nil {
+					if lastFromBalance, fromBalance, err := getLatestTwoBalances(fromAddress, transactionBlockNumber); err != nil {
 						log.Fatal(err)
-					} else if fromBalance, err :=
-						ethHttpClientPointer.BalanceAt(
-							context.Background(),
-							fromAddress,
-							transactionBlockNumber,
-						); err != nil {
-						log.Fatal(err)
-					} else if lastToBalance, err :=
-						ethHttpClientPointer.BalanceAt(
-							context.Background(),
-							toAddress,
-							lastTransactionBlockNumber,
-						); err != nil {
-						log.Fatal(err)
-					} else if toBalance, err :=
-						ethHttpClientPointer.BalanceAt(
-							context.Background(),
-							toAddress,
-							transactionBlockNumber,
-						); err != nil {
+					} else if lastToBalance, toBalance, err := getLatestTwoBalances(toAddress, transactionBlockNumber); err != nil {
 						log.Fatal(err)
 					} else {
 						log.Println(

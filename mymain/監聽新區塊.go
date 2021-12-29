@@ -83,12 +83,12 @@ func subscribeNewBlocks() {
 										redis.XAddArgs{
 											ID: `*`,
 											Values: map[string]interface{}{
-												`hash`:  transactionHashHexString,
-												`转账人`:   fromAddressHex,
-												`收款人`:   toAddressHex,
-												`金额`:    valueString,
-												`时间`:    block.Time(),
-												`是否已入账`: true,
+												`hash`:      transactionHashHexString,
+												`from`:      fromAddressHex,
+												`to`:        toAddressHex,
+												`value`:     valueString,
+												`time`:      block.Time(),
+												`completed`: true,
 											},
 										}
 
@@ -126,11 +126,11 @@ func subscribeNewBlocks() {
 											redisClientPointer.HMSet(
 												getTransactionKey(transactionHashHexString),
 												map[string]interface{}{
-													`转账人`:   fromAddressHex,
-													`收款人`:   toAddressHex,
-													`金额`:    valueString,
-													`时间`:    block.Time(),
-													`是否已入账`: true,
+													`from`:      fromAddressHex,
+													`to`:        toAddressHex,
+													`value`:     valueString,
+													`time`:      block.Time(),
+													`completed`: true,
 												},
 											),
 										)

@@ -3,7 +3,6 @@ package mymain
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -37,7 +36,7 @@ func Test_isUser(t *testing.T) {
 				),
 			),
 		); err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	} else {
 		router.ServeHTTP(responseRecorderPointer, requestPointer)
 

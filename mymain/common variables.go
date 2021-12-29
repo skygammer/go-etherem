@@ -1,7 +1,6 @@
 package mymain
 
 import (
-	"errors"
 	"math"
 	"math/big"
 
@@ -12,17 +11,8 @@ import (
 
 var (
 	rootCommand = &cobra.Command{
-		Args: func(cmd *cobra.Command, args []string) error {
-
-			if len(args) != 1 {
-				return errors.New("one argument required")
-			} else if len(args[0]) != 8 {
-				return errors.New("key for DES encryption/descryption should be in 64 bits")
-			} else {
-				return nil
-			}
-
-		},
+		SilenceUsage: true,
+		Args:         checkArguments(cobra.ExactArgs(1)),
 		Run: func(cmd *cobra.Command, args []string) {
 			desKey = args[0]
 		},
@@ -53,7 +43,7 @@ const (
 	ethHttpServerUrl = `http://localhost:7545`
 	ethWsServerUrl   = `ws://localhost:7545`
 	accountIndexMax  = 99
-	mnemonic         = `cash village area early major output rubber snow boost amateur option vault`
+	mnemonic         = `stuff simple vast often effort exercise clock face casual shoe horror shallow`
 )
 
 // eth var
@@ -71,10 +61,11 @@ var (
 
 // redis const
 const (
-	redisServerUrl           = `localhost:6379`
-	userNamespaceConstString = `User`
-	userAddressFieldName     = `address`
-	userPrivateKeyFieldName  = `private key`
+	redisServerUrl                  = `localhost:6379`
+	userNamespaceConstString        = `User`
+	userAddressFieldName            = `address`
+	userPrivateKeyFieldName         = `private key`
+	transactionNamespaceConstString = `Transaction`
 )
 
 // redis var
@@ -98,6 +89,5 @@ var (
 )
 
 var (
-	bigIntObject     = new(big.Int)
 	weisPerEthBigInt = big.NewInt(int64(math.Pow10(18)))
 )

@@ -2,7 +2,6 @@ package mymain
 
 import (
 	"bytes"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -31,7 +30,7 @@ func Test_postAccountAccumulationAPI(t *testing.T) {
 				formatString,
 			),
 		); err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	} else {
 		router.ServeHTTP(responseRecorderPointer, requestPointer)
 		assert.Equal(t, http.StatusOK, responseRecorderPointer.Code)

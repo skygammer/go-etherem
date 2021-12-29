@@ -3,7 +3,6 @@ package mymain
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -32,7 +31,7 @@ func Test_postAccountDepositAPI(t *testing.T) {
 		getWalletPointerAndAccountPointerByMnemonicStringAndDerivationPathIndex(mnemonic, 0); walletPointer != nil && accountPointer != nil {
 
 		if privateKeyHexString, err := walletPointer.PrivateKeyHex(*accountPointer); err != nil {
-			log.Fatal(err)
+			t.Fatal(err)
 		} else if requestPointer, err :=
 			http.NewRequest(
 				http.MethodPost,
@@ -45,7 +44,7 @@ func Test_postAccountDepositAPI(t *testing.T) {
 					),
 				),
 			); err != nil {
-			log.Fatal(err)
+			t.Fatal(err)
 		} else {
 			router.ServeHTTP(responseRecorderPointer, requestPointer)
 			assert.Equal(t, http.StatusOK, responseRecorderPointer.Code)
@@ -57,7 +56,7 @@ func Test_postAccountDepositAPI(t *testing.T) {
 		getWalletPointerAndAccountPointerByMnemonicStringAndDerivationPathIndex(mnemonic, 1); walletPointer != nil && accountPointer != nil {
 
 		if privateKeyHexString, err := walletPointer.PrivateKeyHex(*accountPointer); err != nil {
-			log.Fatal(err)
+			t.Fatal(err)
 		} else if requestPointer, err :=
 			http.NewRequest(
 				http.MethodPost,
@@ -70,7 +69,7 @@ func Test_postAccountDepositAPI(t *testing.T) {
 					),
 				),
 			); err != nil {
-			log.Fatal(err)
+			t.Fatal(err)
 		} else {
 			router.ServeHTTP(responseRecorderPointer, requestPointer)
 			assert.Equal(t, http.StatusOK, responseRecorderPointer.Code)
@@ -82,7 +81,7 @@ func Test_postAccountDepositAPI(t *testing.T) {
 		getWalletPointerAndAccountPointerByMnemonicStringAndDerivationPathIndex(mnemonic, accountIndexMax-4); walletPointer != nil && accountPointer != nil {
 
 		if privateKeyHexString, err := walletPointer.PrivateKeyHex(*accountPointer); err != nil {
-			log.Fatal(err)
+			t.Fatal(err)
 		} else if requestPointer, err :=
 			http.NewRequest(
 				http.MethodPost,
@@ -95,7 +94,7 @@ func Test_postAccountDepositAPI(t *testing.T) {
 					),
 				),
 			); err != nil {
-			log.Fatal(err)
+			t.Fatal(err)
 		} else {
 			router.ServeHTTP(responseRecorderPointer, requestPointer)
 			assert.Equal(t, http.StatusOK, responseRecorderPointer.Code)

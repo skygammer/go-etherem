@@ -92,7 +92,7 @@ func postAccountAccumulationAPI(ginContextPointer *gin.Context) {
 						types.NewTransaction(
 							nonce,
 							toAddress,
-							bigIntObject.Add(amount, big.NewInt(int64(-gasLimit))),
+							big.NewInt(0).Add(amount, big.NewInt(int64(-gasLimit))),
 							gasLimit,
 							gasPrice,
 							nil,

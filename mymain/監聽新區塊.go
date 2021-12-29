@@ -65,70 +65,83 @@ func subscribeNewBlocks() {
 
 							for _, tx := range block.Transactions() {
 
-								toAddress := tx.To()
-
-								if fromAddress, err :=
+								if toAddressPointer := tx.To(); toAddressPointer == nil {
+								} else if fromAddress, err :=
 									types.Sender(types.NewEIP2930Signer(tx.ChainId()), tx); err != nil {
 									log.Fatal(err)
 								} else {
 
-									valueInETHString := bigIntObject.Div(tx.Value(), weisPerEthBigInt).String()
+									transactionHashHexString := tx.Hash().Hex()
+									valueString := tx.Value().String()
 
 									fromAddressHex := fromAddress.Hex()
 
+									toAddress := *toAddressPointer
 									toAddressHex := toAddress.Hex()
+
+									commonRedisXAddArgs :=
+										redis.XAddArgs{
+											ID: `*`,
+											Values: map[string]interface{}{
+												`hash`:  transactionHashHexString,
+												`转账人`:   fromAddressHex,
+												`收款人`:   toAddressHex,
+												`金额`:    valueString,
+												`时间`:    block.Time(),
+												`是否已入账`: true,
+											},
+										}
 
 									if fromAddressHex ==
 										specialWalletAddressHexes[HotWalletIndex] {
 
+										commonRedisXAddArgs.Stream = redisStreamKeys[WithdrawIndex]
+
 										// 生成transfer消息并发送到队列的withdraw主题(redis 中 stream数据)
 										if err :=
 											redisClientPointer.XAdd(
-												&redis.XAddArgs{
-													Stream: redisStreamKeys[WithdrawIndex],
-													ID:     `*`,
-													Values: map[string]interface{}{
-														`from`:     fromAddressHex,
-														`to`:       toAddressHex,
-														`eth_size`: valueInETHString,
-													},
-												}).Err(); err != nil {
+												&commonRedisXAddArgs,
+											).Err(); err != nil {
 											log.Fatal(err)
 										}
 
 									} else if toAddressHex ==
 										specialWalletAddressHexes[CollectionIndex] {
 
+										commonRedisXAddArgs.Stream = redisStreamKeys[CollectionIndex]
+
 										// 生成transfer消息并发送到队列的collection主题(redis 中 stream数据)
 										if err :=
 											redisClientPointer.XAdd(
-												&redis.XAddArgs{
-													Stream: redisStreamKeys[CollectionIndex],
-													ID:     `*`,
-													Values: map[string]interface{}{
-														`from`:     fromAddressHex,
-														`to`:       toAddressHex,
-														`eth_size`: valueInETHString,
-													},
-												}).Err(); err != nil {
+												&commonRedisXAddArgs,
+											).Err(); err != nil {
 											log.Fatal(err)
 										}
 
 									} else if !isUserAccountAddressHexString(fromAddressHex) &&
 										isUserAccountAddressHexString(toAddressHex) {
 
+										// 充值要记录这笔转入的transaction，比如转账人，收款人，金额，时间，hash，是否已入账
+										log.Println(
+											redisClientPointer.HMSet(
+												getTransactionKey(transactionHashHexString),
+												map[string]interface{}{
+													`转账人`:   fromAddressHex,
+													`收款人`:   toAddressHex,
+													`金额`:    valueString,
+													`时间`:    block.Time(),
+													`是否已入账`: true,
+												},
+											),
+										)
+
+										commonRedisXAddArgs.Stream = redisStreamKeys[DepositIndex]
+
 										// 生成transfer消息并发送到队列的deposit主题(redis 中 stream数据)
 										if err :=
 											redisClientPointer.XAdd(
-												&redis.XAddArgs{
-													Stream: redisStreamKeys[DepositIndex],
-													ID:     `*`,
-													Values: map[string]interface{}{
-														`from`:     fromAddressHex,
-														`to`:       toAddressHex,
-														`eth_size`: valueInETHString,
-													},
-												}).Err(); err != nil {
+												&commonRedisXAddArgs,
+											).Err(); err != nil {
 											log.Fatal(err)
 										}
 
@@ -139,8 +152,6 @@ func subscribeNewBlocks() {
 										currentBlockNumber+1,
 										0,
 									)
-
-									printRedisStreams()
 
 								}
 

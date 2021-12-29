@@ -15,7 +15,29 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/gin-gonic/gin"
 	hdwallet "github.com/miguelmota/go-ethereum-hdwallet"
+	"github.com/spf13/cobra"
 )
+
+func checkArguments(checks ...cobra.PositionalArgs) cobra.PositionalArgs {
+
+	return func(cmd *cobra.Command, args []string) error {
+
+		for _, check := range checks {
+
+			if err := check(cmd, args); err != nil {
+				return err
+			}
+
+		}
+
+		if _, err := des.NewCipher([]byte(args[0])); err != nil {
+			return err
+		} else {
+			return nil
+		}
+
+	}
+}
 
 // 設定路由
 func setupRouter() *gin.Engine {
@@ -32,48 +54,53 @@ func setupRouter() *gin.Engine {
 // 初始化
 func initialize() {
 
-	// 歸集錢包
-	specialWalletAddressHexes[AccumulationWalletIndex] =
-		getAccountPointerByMnemonicStringAndDerivationPathIndex(
-			mnemonic,
-			accountIndexMax-AccountCreatedIndex,
-		).Address.Hex()
-
-	//熱錢包
-	specialWalletAddressHexes[HotWalletIndex] =
-		getAccountPointerByMnemonicStringAndDerivationPathIndex(
-			mnemonic, accountIndexMax-HotWalletIndex,
-		).Address.Hex()
-
-	// 系統冷錢包
-	specialWalletAddressHexes[SystemColdWalletIndex] =
-		getAccountPointerByMnemonicStringAndDerivationPathIndex(
-			mnemonic,
-			accountIndexMax-SystemColdWalletIndex,
-		).Address.Hex()
-
-	// boss冷錢包
-	specialWalletAddressHexes[BossColdWalletIndex] =
-		getAccountPointerByMnemonicStringAndDerivationPathIndex(
-			mnemonic,
-			accountIndexMax-BossColdWalletIndex,
-		).Address.Hex()
-
-	// eth http 客戶端指標
-	if thisEthHttpClientPointer, err := ethclient.Dial(ethHttpServerUrl); err != nil {
-		log.Fatal(err)
+	if err := rootCommand.Execute(); err != nil {
+		log.Panic(err)
 	} else {
-		ethHttpClientPointer = thisEthHttpClientPointer
+
+		// 歸集錢包
+		specialWalletAddressHexes[AccumulationWalletIndex] =
+			getAccountPointerByMnemonicStringAndDerivationPathIndex(
+				mnemonic,
+				accountIndexMax-AccountCreatedIndex,
+			).Address.Hex()
+
+		//熱錢包
+		specialWalletAddressHexes[HotWalletIndex] =
+			getAccountPointerByMnemonicStringAndDerivationPathIndex(
+				mnemonic, accountIndexMax-HotWalletIndex,
+			).Address.Hex()
+
+		// 系統冷錢包
+		specialWalletAddressHexes[SystemColdWalletIndex] =
+			getAccountPointerByMnemonicStringAndDerivationPathIndex(
+				mnemonic,
+				accountIndexMax-SystemColdWalletIndex,
+			).Address.Hex()
+
+		// boss冷錢包
+		specialWalletAddressHexes[BossColdWalletIndex] =
+			getAccountPointerByMnemonicStringAndDerivationPathIndex(
+				mnemonic,
+				accountIndexMax-BossColdWalletIndex,
+			).Address.Hex()
+
+		// eth http 客戶端指標
+		if thisEthHttpClientPointer, err := ethclient.Dial(ethHttpServerUrl); err != nil {
+			log.Fatal(err)
+		} else {
+			ethHttpClientPointer = thisEthHttpClientPointer
+		}
+
+		// eth websocket 客戶端指標
+		if thisEthWebsocketClientPointer, err := ethclient.Dial(ethWsServerUrl); err != nil {
+			log.Fatal(err)
+		} else {
+			ethWebsocketClientPointer = thisEthWebsocketClientPointer
+		}
+
 	}
 
-	// eth websocket 客戶端指標
-	if thisEthWebsocketClientPointer, err := ethclient.Dial(ethWsServerUrl); err != nil {
-		log.Fatal(err)
-	} else {
-		ethWebsocketClientPointer = thisEthWebsocketClientPointer
-	}
-
-	rootCommand.Execute()
 }
 
 // 依據助記詞、推導路徑索引取得帳戶
@@ -200,23 +227,6 @@ func isBindParametersPointerError(ginContextPointer *gin.Context, parametersPoin
 	return result || shouldBindUriError != nil
 }
 
-// 列印Redis隊列
-func printRedisStreams() {
-
-	for _, redisStreamKey := range redisStreamKeys {
-
-		log.Println(
-			redisClientPointer.XRange(
-				redisStreamKey,
-				`-`,
-				`+`,
-			),
-		)
-
-	}
-
-}
-
 // 取得User關鍵字
 func getUserKey(userString string) string {
 
@@ -226,7 +236,7 @@ func getUserKey(userString string) string {
 		return fmt.Sprintf(
 			`%s:%s`,
 			userNamespaceConstString,
-			strings.TrimSpace(userString),
+			trimmedUserString,
 		)
 	} else {
 		return ``
@@ -315,4 +325,21 @@ func decryptDES(src []byte, key []byte) []byte {
 	}
 
 	return src
+}
+
+// 取得Transaction關鍵字
+func getTransactionKey(hashHexString string) string {
+
+	trimmedHashHexString := strings.TrimSpace(hashHexString)
+
+	if len(trimmedHashHexString) > 0 {
+		return fmt.Sprintf(
+			`%s:%s`,
+			transactionNamespaceConstString,
+			trimmedHashHexString,
+		)
+	} else {
+		return ``
+	}
+
 }

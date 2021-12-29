@@ -46,7 +46,7 @@ func postAccountDepositAPI(ginContextPointer *gin.Context) {
 			toAddress := common.HexToAddress(toAddressHexString)
 
 			amount :=
-				bigIntObject.Mul(
+				big.NewInt(0).Mul(
 					big.NewInt(int64(parameters.Size)),
 					weisPerEthBigInt,
 				) // in wei (Size eth)

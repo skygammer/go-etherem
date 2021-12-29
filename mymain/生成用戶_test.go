@@ -3,7 +3,6 @@ package mymain
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -36,7 +35,7 @@ func Test_postAccountAPI(t *testing.T) {
 				),
 			),
 		); err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	} else {
 		router.ServeHTTP(responseRecorderPointer, requestPointer)
 		assert.Equal(t, http.StatusOK, responseRecorderPointer.Code)
@@ -53,7 +52,7 @@ func Test_postAccountAPI(t *testing.T) {
 				),
 			),
 		); err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	} else {
 		router.ServeHTTP(responseRecorderPointer, requestPointer)
 		assert.Equal(t, http.StatusOK, responseRecorderPointer.Code)
@@ -70,7 +69,7 @@ func Test_postAccountAPI(t *testing.T) {
 				),
 			),
 		); err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	} else {
 		router.ServeHTTP(responseRecorderPointer, requestPointer)
 		assert.Equal(t, http.StatusOK, responseRecorderPointer.Code)

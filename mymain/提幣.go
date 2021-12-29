@@ -40,7 +40,7 @@ func postAccountWithdrawalAPI(ginContextPointer *gin.Context) {
 			toAddress := common.HexToAddress(parameters.Address)
 
 			amount :=
-				bigIntObject.Mul(big.NewInt(int64(parameters.Size)), weisPerEthBigInt) // in wei (Size eth)
+				big.NewInt(0).Mul(big.NewInt(int64(parameters.Size)), weisPerEthBigInt) // in wei (Size eth)
 
 			if gasLimit, err :=
 				ethHttpClientPointer.EstimateGas(
@@ -87,6 +87,7 @@ func postAccountWithdrawalAPI(ginContextPointer *gin.Context) {
 				} else if receiptPointer, err := ethHttpClientPointer.TransactionReceipt(context.Background(), signedTransactionPointer.Hash()); err != nil {
 					log.Fatal(err)
 				} else {
+
 					transactionBlockNumber := receiptPointer.BlockNumber
 					lastTransactionBlockNumber := big.NewInt(transactionBlockNumber.Int64() - 1)
 

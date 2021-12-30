@@ -2,7 +2,9 @@ package mymain
 
 import (
 	"context"
+	"fmt"
 	"math/big"
+	"net/http"
 	"strings"
 
 	"github.com/ethereum/go-ethereum"
@@ -15,6 +17,8 @@ import (
 // API 充值
 func postAccountDepositAPI(ginContextPointer *gin.Context) {
 
+	isUndoneChannel <- true
+
 	type Parameters struct {
 		Account    string // 帳戶
 		Address    string // 來源地址
@@ -22,7 +26,10 @@ func postAccountDepositAPI(ginContextPointer *gin.Context) {
 		Size       int    // eth值
 	}
 
-	var parameters Parameters
+	var (
+		parameters Parameters
+		httpStatus = http.StatusForbidden
+	)
 
 	if !isBindParametersPointerError(ginContextPointer, &parameters) {
 
@@ -95,12 +102,27 @@ func postAccountDepositAPI(ginContextPointer *gin.Context) {
 						signedTransactionPointer,
 					); err != nil {
 					sugaredLogger.Fatal(err)
+				} else {
+					sugaredLogger.Info(
+						fmt.Sprintf(
+							`送出交易 %s`,
+							signedTransactionPointer.Hash().Hex(),
+						),
+					)
 				}
 
 			}
 
 		}
 
+		httpStatus = http.StatusOK
+
 	}
+
+	ginContextPointer.Status(httpStatus)
+
+	logAPIRequest(ginContextPointer, parameters, httpStatus)
+
+	<-isUndoneChannel
 
 }

@@ -2,7 +2,9 @@ package mymain
 
 import (
 	"context"
+	"fmt"
 	"math/big"
+	"net/http"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -14,10 +16,15 @@ import (
 // API 歸集
 func postAccountAccumulationAPI(ginContextPointer *gin.Context) {
 
+	isUndoneChannel <- true
+
 	type Parameters struct {
 	}
 
-	var parameters Parameters
+	var (
+		parameters Parameters
+		httpStatus = http.StatusForbidden
+	)
 
 	if !isBindParametersPointerError(ginContextPointer, &parameters) {
 
@@ -110,6 +117,13 @@ func postAccountAccumulationAPI(ginContextPointer *gin.Context) {
 							signedTransactionPointer,
 						); err != nil {
 						sugaredLogger.Fatal(err)
+					} else {
+						sugaredLogger.Info(
+							fmt.Sprintf(
+								`送出交易 %s`,
+								signedTransactionPointer.Hash().Hex(),
+							),
+						)
 					}
 
 				}
@@ -118,6 +132,14 @@ func postAccountAccumulationAPI(ginContextPointer *gin.Context) {
 
 		}
 
+		httpStatus = http.StatusOK
+
 	}
+
+	ginContextPointer.Status(httpStatus)
+
+	logAPIRequest(ginContextPointer, parameters, httpStatus)
+
+	<-isUndoneChannel
 
 }

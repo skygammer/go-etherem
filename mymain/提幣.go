@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"net/http"
 	"strings"
 
 	"github.com/ethereum/go-ethereum"
@@ -15,12 +16,17 @@ import (
 // API 提幣
 func postAccountWithdrawalAPI(ginContextPointer *gin.Context) {
 
+	isUndoneChannel <- true
+
 	type Parameters struct {
 		Address string // 目的地址
 		Size    int    // eth值
 	}
 
-	var parameters Parameters
+	var (
+		parameters Parameters
+		httpStatus = http.StatusForbidden
+	)
 
 	if !isBindParametersPointerError(ginContextPointer, &parameters) {
 
@@ -83,39 +89,27 @@ func postAccountWithdrawalAPI(ginContextPointer *gin.Context) {
 					sugaredLogger.Fatal(err)
 				} else if err := ethHttpClientPointer.SendTransaction(context.Background(), signedTransactionPointer); err != nil {
 					sugaredLogger.Fatal(err)
-				} else if receiptPointer, err := ethHttpClientPointer.TransactionReceipt(context.Background(), signedTransactionPointer.Hash()); err != nil {
-					sugaredLogger.Fatal(err)
 				} else {
-
-					transactionBlockNumber := receiptPointer.BlockNumber
-
-					if lastFromBalance, fromBalance, err := getLatestTwoBalances(fromAddress, transactionBlockNumber); err != nil {
-						sugaredLogger.Fatal(err)
-					} else if lastToBalance, toBalance, err := getLatestTwoBalances(toAddress, transactionBlockNumber); err != nil {
-						sugaredLogger.Fatal(err)
-					} else {
-						sugaredLogger.Info(
-							fmt.Sprintf(`
-帳戶餘額變化
-從 %s : %s -> %s
-到 %s : %s -> %s
-`,
-								fromAddress.Hex(),
-								lastFromBalance,
-								fromBalance,
-								toAddress.Hex(),
-								lastToBalance,
-								toBalance,
-							),
-						)
-					}
-
+					sugaredLogger.Info(
+						fmt.Sprintf(
+							`送出交易 %s`,
+							signedTransactionPointer.Hash().Hex(),
+						),
+					)
 				}
 
 			}
 
 		}
 
+		httpStatus = http.StatusOK
+
 	}
+
+	ginContextPointer.Status(httpStatus)
+
+	logAPIRequest(ginContextPointer, parameters, httpStatus)
+
+	<-isUndoneChannel
 
 }

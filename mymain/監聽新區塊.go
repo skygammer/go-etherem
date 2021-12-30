@@ -2,6 +2,7 @@ package mymain
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"os"
 	"os/signal"
@@ -127,14 +128,29 @@ func subscribeNewBlocks() {
 									if fromAddressHex ==
 										specialWalletAddressHexes[HotWalletIndex] {
 
-										commonRedisXAddArgs.Stream = redisStreamKeys[WithdrawIndex]
+										redisStreamKeyIndex := WithdrawIndex
+
+										commonRedisXAddArgs.Stream = redisStreamKeys[redisStreamKeyIndex]
 
 										// 生成transfer消息并发送到队列的withdraw主题(redis 中 stream数据)
-										if err :=
+										logRedisStringCommandPointer(
 											redisClientPointer.XAdd(
 												&commonRedisXAddArgs,
-											).Err(); err != nil {
-											sugaredLogger.Fatal(err)
+											),
+										)
+
+										if isCompleted {
+											sugaredLogger.Info(
+												fmt.Sprintf(`%s自 %s : %s -> %s 至 %s : %s -> %s`,
+													actionStrings[redisStreamKeyIndex],
+													fromAddress.Hex(),
+													lastFromBalance,
+													fromBalance,
+													toAddress.Hex(),
+													lastToBalance,
+													toBalance,
+												),
+											)
 										}
 
 									} else if toAddressHex ==
@@ -142,19 +158,17 @@ func subscribeNewBlocks() {
 
 										commonRedisXAddArgs.Stream = redisStreamKeys[CollectionIndex]
 
-										// 生成transfer消息并发送到队列的collection主题(redis 中 stream数据)
-										if err :=
+										logRedisStringCommandPointer(
 											redisClientPointer.XAdd(
 												&commonRedisXAddArgs,
-											).Err(); err != nil {
-											sugaredLogger.Fatal(err)
-										}
+											),
+										)
 
 									} else if !isUserAccountAddressHexString(fromAddressHex) &&
 										isUserAccountAddressHexString(toAddressHex) {
 
 										// 充值要记录这笔转入的transaction，比如转账人，收款人，金额，时间，hash，是否已入账
-										sugaredLogger.Info(
+										logRedisStatusCommandPointer(
 											redisClientPointer.HMSet(
 												getTransactionKey(transactionHashHexString),
 												map[string]interface{}{
@@ -167,15 +181,14 @@ func subscribeNewBlocks() {
 											),
 										)
 
+										// 生成transfer消息并发送到队列的deposit主题(redis 中 stream数据)
 										commonRedisXAddArgs.Stream = redisStreamKeys[DepositIndex]
 
-										// 生成transfer消息并发送到队列的deposit主题(redis 中 stream数据)
-										if err :=
+										logRedisStringCommandPointer(
 											redisClientPointer.XAdd(
 												&commonRedisXAddArgs,
-											).Err(); err != nil {
-											sugaredLogger.Fatal(err)
-										}
+											),
+										)
 
 									}
 

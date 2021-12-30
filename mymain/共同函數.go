@@ -1,56 +1,20 @@
 package mymain
 
 import (
-	"bytes"
 	"context"
-	"crypto/cipher"
-	"crypto/des"
 	"fmt"
-	"io/ioutil"
 	"math/big"
-	"net/http"
 	"regexp"
-	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/gin-gonic/gin"
 	hdwallet "github.com/miguelmota/go-ethereum-hdwallet"
-	"github.com/spf13/cobra"
 )
 
-func checkArguments(checks ...cobra.PositionalArgs) cobra.PositionalArgs {
-
-	return func(cmd *cobra.Command, args []string) error {
-
-		for _, check := range checks {
-
-			if err := check(cmd, args); err != nil {
-				return err
-			}
-
-		}
-
-		if _, err := des.NewCipher([]byte(args[0])); err != nil {
-			return err
-		} else {
-			return nil
-		}
-
-	}
-}
-
-// 設定路由
-func setupRouter() *gin.Engine {
-
-	router := gin.Default()
-	router.POST(`/user`, postUserAPI)
-	router.POST(`/account/deposit/ETH`, postAccountDepositAPI)
-	router.POST(`/account/withdrawal/ETH`, postAccountWithdrawalAPI)
-	router.POST(`/accumulation`, postAccountAccumulationAPI)
-
-	return router
+// 判斷地址hex字串是否合法
+func isAddressHexStringLegal(addressString string) bool {
+	return regexp.MustCompile(`^0x[0-9a-fA-F]{40}$`).MatchString(addressString)
 }
 
 // 初始化
@@ -179,172 +143,6 @@ func getAccountPointerByMnemonicStringAndDerivationPathString(mnemonicString str
 	}
 
 	return nil
-
-}
-
-func isAddressHexStringLegal(addressString string) bool {
-	return regexp.MustCompile(`^0x[0-9a-fA-F]{40}$`).MatchString(addressString)
-}
-
-// isBindParametersPointerError - 判斷是否綁定參數指標錯誤
-func isBindParametersPointerError(ginContextPointer *gin.Context, parametersPointer interface{}) bool {
-
-	var result bool
-
-	if ginContextPointer.Request.Method == http.MethodGet {
-
-		err := ginContextPointer.ShouldBind(parametersPointer)
-
-		result = err != nil
-
-		if result {
-			sugaredLogger.Fatal(err)
-		}
-
-	} else {
-
-		if rawDataBytes, getRawDataError := ginContextPointer.GetRawData(); getRawDataError != nil {
-			sugaredLogger.Fatal(getRawDataError)
-		} else {
-			ginContextPointer.Request.Body = ioutil.NopCloser(bytes.NewBuffer(rawDataBytes))
-
-			err := ginContextPointer.ShouldBindJSON(parametersPointer)
-
-			result = err != nil
-
-			if result {
-				sugaredLogger.Fatal(err)
-			}
-
-			ginContextPointer.Request.Body = ioutil.NopCloser(bytes.NewBuffer(rawDataBytes))
-
-		}
-
-	}
-
-	shouldBindUriError := ginContextPointer.ShouldBindUri(parametersPointer)
-
-	if shouldBindUriError != nil {
-		sugaredLogger.Fatal(shouldBindUriError)
-	}
-
-	return result || shouldBindUriError != nil
-}
-
-// 取得User關鍵字
-func getUserKey(userString string) string {
-
-	trimmedUserString := strings.TrimSpace(userString)
-
-	if len(trimmedUserString) > 0 {
-		return fmt.Sprintf(
-			`%s:%s`,
-			userNamespaceConstString,
-			trimmedUserString,
-		)
-	} else {
-		return ``
-	}
-
-}
-
-// 判斷是否為使用者
-func isUser(userString string) bool {
-
-	trimmedUserString := strings.TrimSpace(userString)
-
-	return len(trimmedUserString) > 0 &&
-		len(
-			redisClientPointer.HKeys(
-				getUserKey(trimmedUserString),
-			).Val(),
-		) > 0
-}
-
-// 判斷是否為使用者帳戶hex地址字串
-func isUserAccountAddressHexString(addressHexString string) bool {
-
-	if trimmedAddressHexString :=
-		strings.TrimSpace(addressHexString); isAddressHexStringLegal(trimmedAddressHexString) {
-
-		keys, _ := redisClientPointer.Scan(
-			0,
-			getUserKey(`*`),
-			0,
-		).Val()
-
-		for _, key := range keys {
-
-			if redisClientPointer.HGet(key, userAddressFieldName).Val() ==
-				trimmedAddressHexString {
-				return true
-			}
-
-		}
-
-	}
-
-	return false
-
-}
-
-// 填充
-func padding(src []byte, blocksize int) []byte {
-	n := len(src)
-	padnum := blocksize - n%blocksize
-	pad := bytes.Repeat([]byte{byte(padnum)}, padnum)
-	dst := append(src, pad...)
-	return dst
-}
-
-// 反填充
-func unpadding(src []byte) []byte {
-	n := len(src)
-	unpadnum := int(src[n-1])
-	dst := src[:n-unpadnum]
-	return dst
-}
-
-// DES 加密
-func encryptDES(src []byte, key []byte) []byte {
-
-	if block, err := des.NewCipher(key); err != nil {
-		sugaredLogger.Fatal(err)
-	} else {
-		src = padding(src, block.BlockSize())
-		cipher.NewCBCEncrypter(block, key).CryptBlocks(src, src)
-	}
-
-	return src
-}
-
-// DES 解密
-func decryptDES(src []byte, key []byte) []byte {
-
-	if block, err := des.NewCipher(key); err != nil {
-		sugaredLogger.Fatal(err)
-	} else {
-		cipher.NewCBCDecrypter(block, key).CryptBlocks(src, src)
-		src = unpadding(src)
-	}
-
-	return src
-}
-
-// 取得Transaction關鍵字
-func getTransactionKey(hashHexString string) string {
-
-	trimmedHashHexString := strings.TrimSpace(hashHexString)
-
-	if len(trimmedHashHexString) > 0 {
-		return fmt.Sprintf(
-			`%s:%s`,
-			transactionNamespaceConstString,
-			trimmedHashHexString,
-		)
-	} else {
-		return ``
-	}
 
 }
 

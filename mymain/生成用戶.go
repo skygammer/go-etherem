@@ -1,6 +1,7 @@
 package mymain
 
 import (
+	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -16,7 +17,10 @@ func postUserAPI(ginContextPointer *gin.Context) {
 		User string // 新增使用者
 	}
 
-	var parameters Parameters
+	var (
+		parameters Parameters
+		httpStatus = http.StatusForbidden
+	)
 
 	if !isBindParametersPointerError(ginContextPointer, &parameters) {
 
@@ -42,37 +46,50 @@ func postUserAPI(ginContextPointer *gin.Context) {
 
 				accountAddressHexString := accountPointer.Address.Hex()
 
-				sugaredLogger.Info(
+				redisStatusCommandPointer :=
 					redisClientPointer.HMSet(
 						getUserKey(parametersUser),
 						map[string]interface{}{
 							userAddressFieldName:    accountAddressHexString,
 							userPrivateKeyFieldName: encryptDES([]byte(accountPrivateKeyHexString), []byte(desKey)),
 						},
-					),
-				)
+					)
 
-				redisClientPointer.Set(nextUserIndexString, nextUserIndexNumber+1, 0)
+				logRedisStatusCommandPointer(redisClientPointer.ReadOnly())
 
-				// 生成account_created消息并发送到队列的account_created主题(redis 中 stream数据)
-				if err :=
-					redisClientPointer.XAdd(
-						&redis.XAddArgs{
-							Stream: redisStreamKeys[AccountCreatedIndex],
-							ID:     `*`,
-							Values: map[string]interface{}{
-								`user`:    parametersUser,
-								`address`: accountAddressHexString,
+				if redisStatusCommandPointer.Err() == nil {
+
+					logRedisStatusCommandPointer(
+						redisClientPointer.Set(nextUserIndexString, nextUserIndexNumber+1, 0),
+					)
+
+					// 生成account_created消息并发送到队列的account_created主题(redis 中 stream数据)
+					logRedisStringCommandPointer(
+						redisClientPointer.XAdd(
+							&redis.XAddArgs{
+								Stream: redisStreamKeys[AccountCreatedIndex],
+								ID:     `*`,
+								Values: map[string]interface{}{
+									`user`:    parametersUser,
+									`address`: accountAddressHexString,
+								},
 							},
-						}).Err(); err != nil {
-					sugaredLogger.Fatal(err)
+						),
+					)
+
 				}
 
 			}
 
 		}
 
+		httpStatus = http.StatusOK
+
 	}
+
+	ginContextPointer.Status(httpStatus)
+
+	logAPIRequest(ginContextPointer, parameters, httpStatus)
 
 	<-isUndoneChannel
 

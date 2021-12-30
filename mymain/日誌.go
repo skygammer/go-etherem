@@ -68,7 +68,7 @@ func getZapCoreUnderlyingCore(zapcoreEncoder zapcore.Encoder, zapcoreLevel zapco
 func getFilePathString(fileNameString string) string {
 	return fmt.Sprintf(
 		`%s/%s.%s`,
-		`./logs/error`,
+		`./logs/`+fileNameString,
 		fileNameString,
 		`log`,
 	)

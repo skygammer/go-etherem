@@ -2,7 +2,6 @@ package mymain
 
 import (
 	"context"
-	"log"
 	"math/big"
 	"os"
 	"os/signal"
@@ -24,7 +23,7 @@ func subscribeNewBlocks() {
 			context.Background(),
 			headerChannel,
 		); err != nil {
-		log.Fatal(err)
+		sugaredLogger.Fatal(err)
 	} else {
 
 		signalChannel := make(chan os.Signal, 1)                    // channel for interrupt
@@ -37,7 +36,7 @@ func subscribeNewBlocks() {
 			case err := <-subscription.Err():
 
 				if err != nil {
-					log.Fatal(err)
+					sugaredLogger.Fatal(err)
 				}
 
 			case header := <-headerChannel:
@@ -47,7 +46,7 @@ func subscribeNewBlocks() {
 				if nextBlockNumber, err :=
 					redisClientPointer.Get(nextBlockNumberString).Int64(); err != nil &&
 					err != redis.Nil {
-					log.Fatal(err)
+					sugaredLogger.Fatal(err)
 				} else {
 
 					for currentBlockNumber := nextBlockNumber; currentBlockNumber <= header.Number.Int64(); currentBlockNumber++ {
@@ -60,7 +59,7 @@ func subscribeNewBlocks() {
 								context.Background(),
 								big.NewInt(currentBlockNumber),
 							); err != nil {
-							log.Fatal(err)
+							sugaredLogger.Fatal(err)
 						} else {
 
 							transactionBlockNumber := block.Number()
@@ -70,13 +69,13 @@ func subscribeNewBlocks() {
 								if toAddressPointer := tx.To(); toAddressPointer == nil {
 								} else if fromAddress, err :=
 									types.Sender(types.NewEIP2930Signer(tx.ChainId()), tx); err != nil {
-									log.Fatal(err)
+									sugaredLogger.Fatal(err)
 								} else if lastFromBalance, fromBalance, err :=
 									getLatestTwoBalances(fromAddress, transactionBlockNumber); err != nil {
-									log.Fatal(err)
+									sugaredLogger.Fatal(err)
 								} else if lastToBalance, toBalance, err :=
 									getLatestTwoBalances(*toAddressPointer, transactionBlockNumber); err != nil {
-									log.Fatal(err)
+									sugaredLogger.Fatal(err)
 								} else {
 
 									transactionHashHexString := tx.Hash().Hex()
@@ -135,7 +134,7 @@ func subscribeNewBlocks() {
 											redisClientPointer.XAdd(
 												&commonRedisXAddArgs,
 											).Err(); err != nil {
-											log.Fatal(err)
+											sugaredLogger.Fatal(err)
 										}
 
 									} else if toAddressHex ==
@@ -148,14 +147,14 @@ func subscribeNewBlocks() {
 											redisClientPointer.XAdd(
 												&commonRedisXAddArgs,
 											).Err(); err != nil {
-											log.Fatal(err)
+											sugaredLogger.Fatal(err)
 										}
 
 									} else if !isUserAccountAddressHexString(fromAddressHex) &&
 										isUserAccountAddressHexString(toAddressHex) {
 
 										// 充值要记录这笔转入的transaction，比如转账人，收款人，金额，时间，hash，是否已入账
-										log.Println(
+										sugaredLogger.Info(
 											redisClientPointer.HMSet(
 												getTransactionKey(transactionHashHexString),
 												map[string]interface{}{
@@ -175,7 +174,7 @@ func subscribeNewBlocks() {
 											redisClientPointer.XAdd(
 												&commonRedisXAddArgs,
 											).Err(); err != nil {
-											log.Fatal(err)
+											sugaredLogger.Fatal(err)
 										}
 
 									}
@@ -199,7 +198,7 @@ func subscribeNewBlocks() {
 				<-isUndoneChannel
 
 			case signal := <-signalChannel:
-				log.Println(signal)
+				sugaredLogger.Info(signal)
 				subscription.Unsubscribe()
 
 				for len(isUndoneChannel) != 0 {

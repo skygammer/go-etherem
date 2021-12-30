@@ -1,7 +1,6 @@
 package mymain
 
 import (
-	"log"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -30,7 +29,7 @@ func postUserAPI(ginContextPointer *gin.Context) {
 
 			if nextUserIndexNumber, err :=
 				redisClientPointer.Get(nextUserIndexString).Int64(); err != nil && err != redis.Nil {
-				log.Fatal(err)
+				sugaredLogger.Fatal(err)
 			} else if walletPointer, accountPointer :=
 				getWalletPointerAndAccountPointerByMnemonicStringAndDerivationPathIndex(
 					mnemonic,
@@ -38,12 +37,12 @@ func postUserAPI(ginContextPointer *gin.Context) {
 				); walletPointer == nil || accountPointer == nil {
 			} else if accountPrivateKeyHexString, err :=
 				walletPointer.PrivateKeyHex(*accountPointer); err != nil {
-				log.Fatal(err)
+				sugaredLogger.Fatal(err)
 			} else {
 
 				accountAddressHexString := accountPointer.Address.Hex()
 
-				log.Println(
+				sugaredLogger.Info(
 					redisClientPointer.HMSet(
 						getUserKey(parametersUser),
 						map[string]interface{}{
@@ -66,7 +65,7 @@ func postUserAPI(ginContextPointer *gin.Context) {
 								`address`: accountAddressHexString,
 							},
 						}).Err(); err != nil {
-					log.Fatal(err)
+					sugaredLogger.Fatal(err)
 				}
 
 			}

@@ -2,7 +2,6 @@ package mymain
 
 import (
 	"context"
-	"log"
 	"math/big"
 	"strings"
 
@@ -40,7 +39,7 @@ func postAccountDepositAPI(ginContextPointer *gin.Context) {
 			!isAddressHexStringLegal(toAddressHexString) ||
 			!isUserAccountAddressHexString(toAddressHexString) {
 		} else if privateKeyPointer, err := crypto.HexToECDSA(parameters.PrivateKey); err != nil {
-			log.Fatal(err)
+			sugaredLogger.Fatal(err)
 		} else {
 
 			toAddress := common.HexToAddress(toAddressHexString)
@@ -58,19 +57,19 @@ func postAccountDepositAPI(ginContextPointer *gin.Context) {
 						To: &toAddress,
 					},
 				); err != nil {
-				log.Fatal(err)
+				sugaredLogger.Fatal(err)
 			} else if nonce, err :=
 				ethHttpClientPointer.PendingNonceAt(
 					context.Background(),
 					common.HexToAddress(fromAddressHexString),
 				); err != nil {
-				log.Fatal(err)
+				sugaredLogger.Fatal(err)
 			} else if gasPrice, err :=
 				ethHttpClientPointer.SuggestGasPrice(context.Background()); err != nil {
-				log.Fatal(err)
+				sugaredLogger.Fatal(err)
 			} else if chainID, err :=
 				ethHttpClientPointer.NetworkID(context.Background()); err != nil {
-				log.Fatal(err)
+				sugaredLogger.Fatal(err)
 			} else {
 
 				transactionPointer :=
@@ -89,13 +88,13 @@ func postAccountDepositAPI(ginContextPointer *gin.Context) {
 						types.NewEIP155Signer(chainID),
 						privateKeyPointer,
 					); err != nil {
-					log.Fatal(err)
+					sugaredLogger.Fatal(err)
 				} else if err :=
 					ethHttpClientPointer.SendTransaction(
 						context.Background(),
 						signedTransactionPointer,
 					); err != nil {
-					log.Fatal(err)
+					sugaredLogger.Fatal(err)
 				}
 
 			}

@@ -7,7 +7,6 @@ import (
 	"crypto/des"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"math/big"
 	"net/http"
 	"regexp"
@@ -57,8 +56,10 @@ func setupRouter() *gin.Engine {
 // 初始化
 func initialize() {
 
+	initializeSugaredLogger()
+
 	if err := rootCommand.Execute(); err != nil {
-		log.Panic(err)
+		sugaredLogger.Panic(err)
 	} else {
 
 		// 歸集錢包
@@ -90,14 +91,14 @@ func initialize() {
 
 		// eth http 客戶端指標
 		if thisEthHttpClientPointer, err := ethclient.Dial(ethHttpServerUrl); err != nil {
-			log.Fatal(err)
+			sugaredLogger.Fatal(err)
 		} else {
 			ethHttpClientPointer = thisEthHttpClientPointer
 		}
 
 		// eth websocket 客戶端指標
 		if thisEthWebsocketClientPointer, err := ethclient.Dial(ethWsServerUrl); err != nil {
-			log.Fatal(err)
+			sugaredLogger.Fatal(err)
 		} else {
 			ethWebsocketClientPointer = thisEthWebsocketClientPointer
 		}
@@ -125,7 +126,7 @@ func getWalletPointerByMnemonicString(mnemonicString string) *hdwallet.Wallet {
 	walletPointer, err := hdwallet.NewFromMnemonic(mnemonicString)
 
 	if err != nil {
-		log.Fatal(err)
+		sugaredLogger.Fatal(err)
 	}
 
 	return walletPointer
@@ -152,9 +153,9 @@ func getWalletPointerAndAccountPointerByMnemonicStringAndDerivationPathString(mn
 	if walletPointer != nil {
 
 		if derivationPath, err := hdwallet.ParseDerivationPath(derivationPathString); err != nil {
-			log.Fatal(err)
+			sugaredLogger.Fatal(err)
 		} else if account, err := walletPointer.Derive(derivationPath, false); err != nil {
-			log.Fatal(err)
+			sugaredLogger.Fatal(err)
 		} else {
 			return walletPointer, &account
 		}
@@ -168,11 +169,11 @@ func getWalletPointerAndAccountPointerByMnemonicStringAndDerivationPathString(mn
 func getAccountPointerByMnemonicStringAndDerivationPathString(mnemonicString string, derivationPathString string) *accounts.Account {
 
 	if wallet, err := hdwallet.NewFromMnemonic(mnemonicString); err != nil {
-		log.Fatal(err)
+		sugaredLogger.Fatal(err)
 	} else if derivationPath, err := hdwallet.ParseDerivationPath(derivationPathString); err != nil {
-		log.Fatal(err)
+		sugaredLogger.Fatal(err)
 	} else if account, err := wallet.Derive(derivationPath, false); err != nil {
-		log.Fatal(err)
+		sugaredLogger.Fatal(err)
 	} else {
 		return &account
 	}
@@ -197,13 +198,13 @@ func isBindParametersPointerError(ginContextPointer *gin.Context, parametersPoin
 		result = err != nil
 
 		if result {
-			log.Fatal(err)
+			sugaredLogger.Fatal(err)
 		}
 
 	} else {
 
 		if rawDataBytes, getRawDataError := ginContextPointer.GetRawData(); getRawDataError != nil {
-			log.Fatal(getRawDataError)
+			sugaredLogger.Fatal(getRawDataError)
 		} else {
 			ginContextPointer.Request.Body = ioutil.NopCloser(bytes.NewBuffer(rawDataBytes))
 
@@ -212,7 +213,7 @@ func isBindParametersPointerError(ginContextPointer *gin.Context, parametersPoin
 			result = err != nil
 
 			if result {
-				log.Fatal(err)
+				sugaredLogger.Fatal(err)
 			}
 
 			ginContextPointer.Request.Body = ioutil.NopCloser(bytes.NewBuffer(rawDataBytes))
@@ -224,7 +225,7 @@ func isBindParametersPointerError(ginContextPointer *gin.Context, parametersPoin
 	shouldBindUriError := ginContextPointer.ShouldBindUri(parametersPointer)
 
 	if shouldBindUriError != nil {
-		log.Fatal(shouldBindUriError)
+		sugaredLogger.Fatal(shouldBindUriError)
 	}
 
 	return result || shouldBindUriError != nil
@@ -308,7 +309,7 @@ func unpadding(src []byte) []byte {
 func encryptDES(src []byte, key []byte) []byte {
 
 	if block, err := des.NewCipher(key); err != nil {
-		log.Fatal(err)
+		sugaredLogger.Fatal(err)
 	} else {
 		src = padding(src, block.BlockSize())
 		cipher.NewCBCEncrypter(block, key).CryptBlocks(src, src)
@@ -321,7 +322,7 @@ func encryptDES(src []byte, key []byte) []byte {
 func decryptDES(src []byte, key []byte) []byte {
 
 	if block, err := des.NewCipher(key); err != nil {
-		log.Fatal(err)
+		sugaredLogger.Fatal(err)
 	} else {
 		cipher.NewCBCDecrypter(block, key).CryptBlocks(src, src)
 		src = unpadding(src)

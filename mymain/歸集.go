@@ -2,7 +2,6 @@ package mymain
 
 import (
 	"context"
-	"log"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum"
@@ -35,7 +34,7 @@ func postAccountAccumulationAPI(ginContextPointer *gin.Context) {
 					To: &toAddress,
 				},
 			); err != nil {
-			log.Fatal(err)
+			sugaredLogger.Fatal(err)
 		} else {
 
 			keys, _ := redisClientPointer.Scan(
@@ -53,7 +52,7 @@ func postAccountAccumulationAPI(ginContextPointer *gin.Context) {
 					key,
 					userPrivateKeyFieldName,
 				).Bytes(); err != nil {
-					log.Fatal(err)
+					sugaredLogger.Fatal(err)
 				} else if privateKeyPointer, err :=
 					crypto.HexToECDSA(
 						string(
@@ -63,29 +62,29 @@ func postAccountAccumulationAPI(ginContextPointer *gin.Context) {
 							),
 						),
 					); err != nil {
-					log.Fatal(err)
+					sugaredLogger.Fatal(err)
 				} else if amount, err :=
 					ethHttpClientPointer.BalanceAt(
 						context.Background(),
 						fromAddress, nil,
 					); err != nil {
-					log.Fatal(err)
+					sugaredLogger.Fatal(err)
 				} else if nonce, err :=
 					ethHttpClientPointer.PendingNonceAt(
 						context.Background(),
 						fromAddress,
 					); err != nil {
-					log.Fatal(err)
+					sugaredLogger.Fatal(err)
 				} else if gasPrice, err :=
 					ethHttpClientPointer.SuggestGasPrice(
 						context.Background(),
 					); err != nil {
-					log.Fatal(err)
+					sugaredLogger.Fatal(err)
 				} else if chainID, err :=
 					ethHttpClientPointer.NetworkID(
 						context.Background(),
 					); err != nil {
-					log.Fatal(err)
+					sugaredLogger.Fatal(err)
 				} else {
 
 					transactionPointer :=
@@ -104,13 +103,13 @@ func postAccountAccumulationAPI(ginContextPointer *gin.Context) {
 							types.NewEIP155Signer(chainID),
 							privateKeyPointer,
 						); err != nil {
-						log.Fatal(err)
+						sugaredLogger.Fatal(err)
 					} else if err :=
 						ethHttpClientPointer.SendTransaction(
 							context.Background(),
 							signedTransactionPointer,
 						); err != nil {
-						log.Fatal(err)
+						sugaredLogger.Fatal(err)
 					}
 
 				}

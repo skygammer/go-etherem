@@ -3,7 +3,6 @@ package mymain
 import (
 	"context"
 	"fmt"
-	"log"
 	"math/big"
 	"strings"
 
@@ -49,20 +48,20 @@ func postAccountWithdrawalAPI(ginContextPointer *gin.Context) {
 						To: &toAddress,
 					},
 				); err != nil {
-				log.Fatal(err)
+				sugaredLogger.Fatal(err)
 			} else if privateKeyPointer, err := fromWalletPointer.PrivateKey(*fromAccountPointer); err != nil {
-				log.Fatal(err)
+				sugaredLogger.Fatal(err)
 			} else if nonce, err :=
 				ethHttpClientPointer.PendingNonceAt(
 					context.Background(),
 					fromAddress,
 				); err != nil {
-				log.Fatal(err)
+				sugaredLogger.Fatal(err)
 			} else if gasPrice, err :=
 				ethHttpClientPointer.SuggestGasPrice(context.Background()); err != nil {
-				log.Fatal(err)
+				sugaredLogger.Fatal(err)
 			} else if chainID, err := ethHttpClientPointer.NetworkID(context.Background()); err != nil {
-				log.Fatal(err)
+				sugaredLogger.Fatal(err)
 			} else {
 
 				transactionPointer :=
@@ -81,21 +80,21 @@ func postAccountWithdrawalAPI(ginContextPointer *gin.Context) {
 						types.NewEIP155Signer(chainID),
 						privateKeyPointer,
 					); err != nil {
-					log.Fatal(err)
+					sugaredLogger.Fatal(err)
 				} else if err := ethHttpClientPointer.SendTransaction(context.Background(), signedTransactionPointer); err != nil {
-					log.Fatal(err)
+					sugaredLogger.Fatal(err)
 				} else if receiptPointer, err := ethHttpClientPointer.TransactionReceipt(context.Background(), signedTransactionPointer.Hash()); err != nil {
-					log.Fatal(err)
+					sugaredLogger.Fatal(err)
 				} else {
 
 					transactionBlockNumber := receiptPointer.BlockNumber
 
 					if lastFromBalance, fromBalance, err := getLatestTwoBalances(fromAddress, transactionBlockNumber); err != nil {
-						log.Fatal(err)
+						sugaredLogger.Fatal(err)
 					} else if lastToBalance, toBalance, err := getLatestTwoBalances(toAddress, transactionBlockNumber); err != nil {
-						log.Fatal(err)
+						sugaredLogger.Fatal(err)
 					} else {
-						log.Println(
+						sugaredLogger.Info(
 							fmt.Sprintf(`
 帳戶餘額變化
 從 %s : %s -> %s

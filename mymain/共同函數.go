@@ -1,7 +1,6 @@
 package mymain
 
 import (
-	"context"
 	"fmt"
 	"math/big"
 	"regexp"
@@ -155,7 +154,7 @@ func getLatestTwoBalances(
 
 	if lastBalance, err =
 		ethHttpClientPointer.BalanceAt(
-			context.Background(),
+			contextBackground,
 			address,
 			lastBlockNumber,
 		); err != nil {
@@ -163,7 +162,7 @@ func getLatestTwoBalances(
 
 		balance, err =
 			ethHttpClientPointer.BalanceAt(
-				context.Background(),
+				contextBackground,
 				address,
 				blockNumber,
 			)

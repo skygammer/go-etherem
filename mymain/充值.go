@@ -1,7 +1,6 @@
 package mymain
 
 import (
-	"context"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -39,7 +38,7 @@ func postAccountDepositAPI(ginContextPointer *gin.Context) {
 			strings.TrimSpace(parameters.Address); !isAddressHexStringLegal(fromAddressHexString) ||
 			isUserAccountAddressHexString(fromAddressHexString) {
 		} else if toAddressHexString :=
-			redisClientPointer.HGet(
+			redisHGet(
 				getUserKey(parametersAccount),
 				userAddressFieldName,
 			).Val(); fromAddressHexString == toAddressHexString ||
@@ -59,7 +58,7 @@ func postAccountDepositAPI(ginContextPointer *gin.Context) {
 
 			if gasLimit, err :=
 				ethHttpClientPointer.EstimateGas(
-					context.Background(),
+					contextBackground,
 					ethereum.CallMsg{
 						To: &toAddress,
 					},
@@ -67,15 +66,15 @@ func postAccountDepositAPI(ginContextPointer *gin.Context) {
 				sugaredLogger.Fatal(err)
 			} else if nonce, err :=
 				ethHttpClientPointer.PendingNonceAt(
-					context.Background(),
+					contextBackground,
 					common.HexToAddress(fromAddressHexString),
 				); err != nil {
 				sugaredLogger.Fatal(err)
 			} else if gasPrice, err :=
-				ethHttpClientPointer.SuggestGasPrice(context.Background()); err != nil {
+				ethHttpClientPointer.SuggestGasPrice(contextBackground); err != nil {
 				sugaredLogger.Fatal(err)
 			} else if chainID, err :=
-				ethHttpClientPointer.NetworkID(context.Background()); err != nil {
+				ethHttpClientPointer.NetworkID(contextBackground); err != nil {
 				sugaredLogger.Fatal(err)
 			} else {
 
@@ -98,7 +97,7 @@ func postAccountDepositAPI(ginContextPointer *gin.Context) {
 					sugaredLogger.Fatal(err)
 				} else if err :=
 					ethHttpClientPointer.SendTransaction(
-						context.Background(),
+						contextBackground,
 						signedTransactionPointer,
 					); err != nil {
 					sugaredLogger.Fatal(err)

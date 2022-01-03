@@ -44,7 +44,7 @@ func Test_isUserAccountAddressHexString(t *testing.T) {
 			t,
 			true,
 			isUserAccountAddressHexString(
-				redisClientPointer.HGet(
+				redisHGet(
 					getUserKey(user),
 					userAddressFieldName,
 				).Val(),

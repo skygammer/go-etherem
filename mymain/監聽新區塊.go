@@ -1,7 +1,6 @@
 package mymain
 
 import (
-	"context"
 	"fmt"
 	"math/big"
 	"os"
@@ -9,7 +8,7 @@ import (
 	"syscall"
 
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/go-redis/redis"
+	"github.com/go-redis/redis/v8"
 )
 
 // 監聽新區塊
@@ -21,7 +20,7 @@ func subscribeNewBlocks() {
 
 	if subscription, err :=
 		ethWebsocketClientPointer.SubscribeNewHead(
-			context.Background(),
+			contextBackground,
 			headerChannel,
 		); err != nil {
 		sugaredLogger.Fatal(err)
@@ -45,8 +44,9 @@ func subscribeNewBlocks() {
 				isUndoneChannel <- true
 
 				if nextBlockNumber, err :=
-					redisClientPointer.Get(nextBlockNumberString).Int64(); err != nil &&
-					err != redis.Nil {
+					redisGet(
+						nextBlockNumberString,
+					).Int64(); err != nil && err != redis.Nil {
 					sugaredLogger.Fatal(err)
 				} else {
 
@@ -57,7 +57,7 @@ func subscribeNewBlocks() {
 						// 将每个相关的交易都发往队列
 						if block, err :=
 							ethWebsocketClientPointer.BlockByNumber(
-								context.Background(),
+								contextBackground,
 								big.NewInt(currentBlockNumber),
 							); err != nil {
 							sugaredLogger.Fatal(err)
@@ -134,7 +134,7 @@ func subscribeNewBlocks() {
 
 										// 生成transfer消息并发送到队列的withdraw主题(redis 中 stream数据)
 										logRedisStringCommandPointer(
-											redisClientPointer.XAdd(
+											redisXAdd(
 												&commonRedisXAddArgs,
 											),
 										)
@@ -159,7 +159,7 @@ func subscribeNewBlocks() {
 										commonRedisXAddArgs.Stream = redisStreamKeys[CollectionIndex]
 
 										logRedisStringCommandPointer(
-											redisClientPointer.XAdd(
+											redisXAdd(
 												&commonRedisXAddArgs,
 											),
 										)
@@ -168,8 +168,8 @@ func subscribeNewBlocks() {
 										isUserAccountAddressHexString(toAddressHex) {
 
 										// 充值要记录这笔转入的transaction，比如转账人，收款人，金额，时间，hash，是否已入账
-										logRedisStatusCommandPointer(
-											redisClientPointer.HMSet(
+										logRedisBoolCommandPointer(
+											redisHMSet(
 												getTransactionKey(transactionHashHexString),
 												map[string]interface{}{
 													`from`:      fromAddressHex,
@@ -185,17 +185,19 @@ func subscribeNewBlocks() {
 										commonRedisXAddArgs.Stream = redisStreamKeys[DepositIndex]
 
 										logRedisStringCommandPointer(
-											redisClientPointer.XAdd(
+											redisXAdd(
 												&commonRedisXAddArgs,
 											),
 										)
 
 									}
 
-									redisClientPointer.Set(
-										nextBlockNumberString,
-										currentBlockNumber+1,
-										0,
+									logRedisStatusCommandPointer(
+										redisSet(
+											nextBlockNumberString,
+											currentBlockNumber+1,
+											0,
+										),
 									)
 
 								}
@@ -216,6 +218,8 @@ func subscribeNewBlocks() {
 
 				for len(isUndoneChannel) != 0 {
 				}
+
+				redisClientPointer.Close()
 
 				return
 

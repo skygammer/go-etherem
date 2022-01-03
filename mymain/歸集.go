@@ -1,7 +1,6 @@
 package mymain
 
 import (
-	"context"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -36,7 +35,7 @@ func postAccountAccumulationAPI(ginContextPointer *gin.Context) {
 
 		if gasLimit, err :=
 			ethHttpClientPointer.EstimateGas(
-				context.Background(),
+				contextBackground,
 				ethereum.CallMsg{
 					To: &toAddress,
 				},
@@ -44,7 +43,7 @@ func postAccountAccumulationAPI(ginContextPointer *gin.Context) {
 			sugaredLogger.Fatal(err)
 		} else {
 
-			keys, _ := redisClientPointer.Scan(
+			keys, _ := redisScan(
 				0,
 				getUserKey(`*`),
 				0,
@@ -52,10 +51,11 @@ func postAccountAccumulationAPI(ginContextPointer *gin.Context) {
 
 			for _, key := range keys {
 
-				fromAddressHexString := redisClientPointer.HGet(key, userAddressFieldName).Val()
+				fromAddressHexString :=
+					redisHGet(key, userAddressFieldName).Val()
 				fromAddress := common.HexToAddress(fromAddressHexString)
 
-				if privateKeyBytes, err := redisClientPointer.HGet(
+				if privateKeyBytes, err := redisHGet(
 					key,
 					userPrivateKeyFieldName,
 				).Bytes(); err != nil {
@@ -72,24 +72,24 @@ func postAccountAccumulationAPI(ginContextPointer *gin.Context) {
 					sugaredLogger.Fatal(err)
 				} else if amount, err :=
 					ethHttpClientPointer.BalanceAt(
-						context.Background(),
+						contextBackground,
 						fromAddress, nil,
 					); err != nil {
 					sugaredLogger.Fatal(err)
 				} else if nonce, err :=
 					ethHttpClientPointer.PendingNonceAt(
-						context.Background(),
+						contextBackground,
 						fromAddress,
 					); err != nil {
 					sugaredLogger.Fatal(err)
 				} else if gasPrice, err :=
 					ethHttpClientPointer.SuggestGasPrice(
-						context.Background(),
+						contextBackground,
 					); err != nil {
 					sugaredLogger.Fatal(err)
 				} else if chainID, err :=
 					ethHttpClientPointer.NetworkID(
-						context.Background(),
+						contextBackground,
 					); err != nil {
 					sugaredLogger.Fatal(err)
 				} else {
@@ -113,7 +113,7 @@ func postAccountAccumulationAPI(ginContextPointer *gin.Context) {
 						sugaredLogger.Fatal(err)
 					} else if err :=
 						ethHttpClientPointer.SendTransaction(
-							context.Background(),
+							contextBackground,
 							signedTransactionPointer,
 						); err != nil {
 						sugaredLogger.Fatal(err)

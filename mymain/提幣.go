@@ -1,7 +1,6 @@
 package mymain
 
 import (
-	"context"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -49,7 +48,7 @@ func postAccountWithdrawalAPI(ginContextPointer *gin.Context) {
 
 			if gasLimit, err :=
 				ethHttpClientPointer.EstimateGas(
-					context.Background(),
+					contextBackground,
 					ethereum.CallMsg{
 						To: &toAddress,
 					},
@@ -59,14 +58,14 @@ func postAccountWithdrawalAPI(ginContextPointer *gin.Context) {
 				sugaredLogger.Fatal(err)
 			} else if nonce, err :=
 				ethHttpClientPointer.PendingNonceAt(
-					context.Background(),
+					contextBackground,
 					fromAddress,
 				); err != nil {
 				sugaredLogger.Fatal(err)
 			} else if gasPrice, err :=
-				ethHttpClientPointer.SuggestGasPrice(context.Background()); err != nil {
+				ethHttpClientPointer.SuggestGasPrice(contextBackground); err != nil {
 				sugaredLogger.Fatal(err)
-			} else if chainID, err := ethHttpClientPointer.NetworkID(context.Background()); err != nil {
+			} else if chainID, err := ethHttpClientPointer.NetworkID(contextBackground); err != nil {
 				sugaredLogger.Fatal(err)
 			} else {
 
@@ -87,7 +86,7 @@ func postAccountWithdrawalAPI(ginContextPointer *gin.Context) {
 						privateKeyPointer,
 					); err != nil {
 					sugaredLogger.Fatal(err)
-				} else if err := ethHttpClientPointer.SendTransaction(context.Background(), signedTransactionPointer); err != nil {
+				} else if err := ethHttpClientPointer.SendTransaction(contextBackground, signedTransactionPointer); err != nil {
 					sugaredLogger.Fatal(err)
 				} else {
 					sugaredLogger.Info(

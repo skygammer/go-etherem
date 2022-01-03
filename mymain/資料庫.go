@@ -1,10 +1,14 @@
 package mymain
 
 import (
+	"context"
 	"fmt"
 	"strings"
+	"time"
 
-	"github.com/go-redis/redis"
+	"github.com/bsm/redislock"
+	// "github.com/go-redis/redis"
+	"github.com/go-redis/redis/v8"
 )
 
 // redis const
@@ -20,12 +24,17 @@ const (
 var (
 	desKey string
 
-	// redis 客戶端指標
+	// redis客戶端指標
 	redisClientPointer = redis.NewClient(
 		&redis.Options{
 			Addr: redisServerUrl, // redis地址
 		},
 	)
+
+	contextBackground = context.Background()
+
+	// redis客戶端上鎖者
+	redisClientLocker = redislock.New(redisClientPointer)
 
 	// redis隊列主題
 	redisStreamKeys = []string{
@@ -50,6 +59,42 @@ const (
 	WithdrawIndex
 	CollectionIndex
 )
+
+// 取得鎖
+func getLock() (lock *redislock.Lock, err error) {
+
+	lock, err =
+		redisClientLocker.Obtain(
+			contextBackground,
+			`key`,
+			100*time.Millisecond,
+			nil,
+		)
+
+	return
+}
+
+// 紀錄redis布林命令指標
+func logRedisBoolCommandPointer(redisBoolCommandPointer *redis.BoolCmd) {
+
+	if redisBoolCommandPointer != nil {
+
+		if err := redisBoolCommandPointer.Err(); err != nil {
+
+			redisStatusCmdPointerArgs := redisBoolCommandPointer.Args()
+
+			sugaredLogger.Fatalf(
+				strings.Repeat(`%s `, len(redisStatusCmdPointerArgs))+`: %s`,
+				append(redisStatusCmdPointerArgs, err)...,
+			)
+
+		} else {
+			sugaredLogger.Info(redisBoolCommandPointer)
+		}
+
+	}
+
+}
 
 // 紀錄redis狀態命令指標
 func logRedisStatusCommandPointer(redisStatusCmdPointer *redis.StatusCmd) {
@@ -119,10 +164,11 @@ func isUser(userString string) bool {
 
 	return len(trimmedUserString) > 0 &&
 		len(
-			redisClientPointer.HKeys(
+			redisHKeys(
 				getUserKey(trimmedUserString),
 			).Val(),
 		) > 0
+
 }
 
 // 判斷是否為使用者帳戶hex地址字串
@@ -131,7 +177,7 @@ func isUserAccountAddressHexString(addressHexString string) bool {
 	if trimmedAddressHexString :=
 		strings.TrimSpace(addressHexString); isAddressHexStringLegal(trimmedAddressHexString) {
 
-		keys, _ := redisClientPointer.Scan(
+		keys, _ := redisScan(
 			0,
 			getUserKey(`*`),
 			0,
@@ -139,7 +185,7 @@ func isUserAccountAddressHexString(addressHexString string) bool {
 
 		for _, key := range keys {
 
-			if redisClientPointer.HGet(key, userAddressFieldName).Val() ==
+			if redisHGet(key, userAddressFieldName).Val() ==
 				trimmedAddressHexString {
 				return true
 			}

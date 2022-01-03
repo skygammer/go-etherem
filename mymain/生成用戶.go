@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-redis/redis"
+	"github.com/go-redis/redis/v8"
 )
 
 // API 生成用户
@@ -32,7 +32,7 @@ func postUserAPI(ginContextPointer *gin.Context) {
 			)
 
 			if nextUserIndexNumber, err :=
-				redisClientPointer.Get(nextUserIndexString).Int64(); err != nil && err != redis.Nil {
+				redisGet(nextUserIndexString).Int64(); err != nil && err != redis.Nil {
 				sugaredLogger.Fatal(err)
 			} else if walletPointer, accountPointer :=
 				getWalletPointerAndAccountPointerByMnemonicStringAndDerivationPathIndex(
@@ -46,8 +46,8 @@ func postUserAPI(ginContextPointer *gin.Context) {
 
 				accountAddressHexString := accountPointer.Address.Hex()
 
-				redisStatusCommandPointer :=
-					redisClientPointer.HMSet(
+				redisBoolCommandPointer :=
+					redisHMSet(
 						getUserKey(parametersUser),
 						map[string]interface{}{
 							userAddressFieldName:    accountAddressHexString,
@@ -55,17 +55,21 @@ func postUserAPI(ginContextPointer *gin.Context) {
 						},
 					)
 
-				logRedisStatusCommandPointer(redisClientPointer.ReadOnly())
+				logRedisBoolCommandPointer(redisBoolCommandPointer)
 
-				if redisStatusCommandPointer.Err() == nil {
+				if redisBoolCommandPointer.Err() == nil {
 
 					logRedisStatusCommandPointer(
-						redisClientPointer.Set(nextUserIndexString, nextUserIndexNumber+1, 0),
+						redisSet(
+							nextUserIndexString,
+							nextUserIndexNumber+1,
+							0,
+						),
 					)
 
 					// 生成account_created消息并发送到队列的account_created主题(redis 中 stream数据)
 					logRedisStringCommandPointer(
-						redisClientPointer.XAdd(
+						redisXAdd(
 							&redis.XAddArgs{
 								Stream: redisStreamKeys[AccountCreatedIndex],
 								ID:     `*`,

@@ -1,7 +1,6 @@
 package mymain
 
 import (
-	"fmt"
 	"math/big"
 	"os"
 	"os/signal"
@@ -128,9 +127,23 @@ func subscribeNewBlocks() {
 									if fromAddressHex ==
 										specialWalletAddressHexes[HotWalletIndex] {
 
-										redisStreamKeyIndex := WithdrawIndex
+										key := redisStreamKeys[WithdrawIndex]
 
-										commonRedisXAddArgs.Stream = redisStreamKeys[redisStreamKeyIndex]
+										// 提币记录表：所有提币记录都存放在此表
+										logRedisBoolCommandPointer(
+											redisHMSet(
+												getNamespaceKey(key, transactionHashHexString),
+												map[string]interface{}{
+													`from`:      fromAddressHex,
+													`to`:        toAddressHex,
+													`value`:     valueString,
+													`time`:      blockTime,
+													`completed`: isCompleted,
+												},
+											),
+										)
+
+										commonRedisXAddArgs.Stream = key
 
 										// 生成transfer消息并发送到队列的withdraw主题(redis 中 stream数据)
 										logRedisStringCommandPointer(
@@ -138,20 +151,6 @@ func subscribeNewBlocks() {
 												&commonRedisXAddArgs,
 											),
 										)
-
-										if isCompleted {
-											sugaredLogger.Info(
-												fmt.Sprintf(`%s自 %s : %s -> %s 至 %s : %s -> %s`,
-													actionStrings[redisStreamKeyIndex],
-													fromAddress.Hex(),
-													lastFromBalance,
-													fromBalance,
-													toAddress.Hex(),
-													lastToBalance,
-													toBalance,
-												),
-											)
-										}
 
 									} else if toAddressHex ==
 										specialWalletAddressHexes[CollectionIndex] {
@@ -168,9 +167,10 @@ func subscribeNewBlocks() {
 										isUserAccountAddressHexString(toAddressHex) {
 
 										// 充值要记录这笔转入的transaction，比如转账人，收款人，金额，时间，hash，是否已入账
+										// 充币记录表：用户往充币地址转账成功后，就可以从区块链上读取到记录，读取到之后就记入该表
 										logRedisBoolCommandPointer(
 											redisHMSet(
-												getTransactionKey(transactionHashHexString),
+												getNamespaceKey(redisStreamKeys[DepositIndex], transactionHashHexString),
 												map[string]interface{}{
 													`from`:      fromAddressHex,
 													`to`:        toAddressHex,

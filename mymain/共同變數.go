@@ -24,7 +24,7 @@ const (
 	ethHttpServerUrl = `http://localhost:7545`
 	ethWsServerUrl   = `ws://localhost:7545`
 	accountIndexMax  = 99
-	mnemonic         = `impulse supply chuckle tumble involve expand wagon awkward uniform abandon smart section`
+	mnemonic         = `cargo sand already sting spike ride custom horror cake average banner language`
 )
 
 // eth var

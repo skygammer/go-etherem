@@ -43,14 +43,6 @@ var (
 		`withdraw`,        // 取
 		`collection`,      // 集
 	}
-
-	// redis隊列主題對應動作名稱
-	actionStrings = []string{
-		`新增用戶錢包`,
-		`充值`,
-		`提幣`,
-		`歸集`,
-	}
 )
 
 const (
@@ -143,17 +135,10 @@ func logRedisStringCommandPointer(redisStringCmdPointer *redis.StringCmd) {
 // 取得User關鍵字
 func getUserKey(userString string) string {
 
-	trimmedUserString := strings.TrimSpace(userString)
-
-	if len(trimmedUserString) > 0 {
-		return fmt.Sprintf(
-			`%s:%s`,
-			userNamespaceConstString,
-			trimmedUserString,
-		)
-	} else {
-		return ``
-	}
+	return getNamespaceKey(
+		userNamespaceConstString,
+		strings.TrimSpace(userString),
+	)
 
 }
 
@@ -199,15 +184,15 @@ func isUserAccountAddressHexString(addressHexString string) bool {
 }
 
 // 取得Transaction關鍵字
-func getTransactionKey(hashHexString string) string {
+func getNamespaceKey(namespace string, key string) string {
 
-	trimmedHashHexString := strings.TrimSpace(hashHexString)
+	trimmedKeyString := strings.TrimSpace(key)
 
-	if len(trimmedHashHexString) > 0 {
+	if len(trimmedKeyString) > 0 {
 		return fmt.Sprintf(
 			`%s:%s`,
-			transactionNamespaceConstString,
-			trimmedHashHexString,
+			namespace,
+			trimmedKeyString,
 		)
 	} else {
 		return ``

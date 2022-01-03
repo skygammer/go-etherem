@@ -18,6 +18,7 @@ func setupRouter() *gin.Engine {
 	router.POST(`/account/deposit/ETH`, postAccountDepositAPI)
 	router.POST(`/account/withdrawal/ETH`, postAccountWithdrawalAPI)
 	router.POST(`/accumulation`, postAccountAccumulationAPI)
+	router.GET(`/deposits`, getDepositsAPI)
 
 	return router
 }

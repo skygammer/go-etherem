@@ -28,13 +28,9 @@ func isBindParametersPointerError(ginContextPointer *gin.Context, parametersPoin
 
 	var result bool
 
-	if ginContextPointer.Request.Method == http.MethodGet {
+	if err := ginContextPointer.ShouldBind(parametersPointer); ginContextPointer.Request.Method == http.MethodGet {
 
-		err := ginContextPointer.ShouldBind(parametersPointer)
-
-		result = err != nil
-
-		if result {
+		if result = err != nil; result {
 			sugaredLogger.Fatal(err)
 		}
 
@@ -47,9 +43,7 @@ func isBindParametersPointerError(ginContextPointer *gin.Context, parametersPoin
 
 			err := ginContextPointer.ShouldBindJSON(parametersPointer)
 
-			result = err != nil
-
-			if result {
+			if result = err != nil; result {
 				sugaredLogger.Fatal(err)
 			}
 

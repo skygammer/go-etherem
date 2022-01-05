@@ -1,14 +1,10 @@
 package mymain
 
 import (
-	"fmt"
 	"math/big"
 	"net/http"
 	"strings"
 
-	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gin-gonic/gin"
 )
@@ -18,110 +14,31 @@ func postAccountDepositAPI(ginContextPointer *gin.Context) {
 
 	isUndoneChannel <- true
 
-	type Parameters struct {
-		Account    string // 帳戶
-		Address    string // 來源地址
-		PrivateKey string // 來源私鑰
-		Size       int    // eth值
-	}
-
 	var (
-		parameters Parameters
+		parameters struct {
+			Account    string // 帳戶
+			Address    string // 來源地址
+			PrivateKey string // 來源私鑰
+			Size       int    // eth值
+		}
 		httpStatus = http.StatusForbidden
 	)
 
 	if !isBindParametersPointerError(ginContextPointer, &parameters) {
 
-		if parametersAccount :=
-			strings.ToLower(strings.TrimSpace(parameters.Account)); len(parametersAccount) == 0 {
-		} else if fromAddressHexString :=
-			strings.TrimSpace(parameters.Address); !isAddressHexStringLegal(fromAddressHexString) ||
-			isUserAccountAddressHexString(fromAddressHexString) {
-		} else if toAddressHexString :=
-			redisHGet(
-				getUserKey(parametersAccount),
-				userAddressFieldName,
-			).Val(); fromAddressHexString == toAddressHexString ||
-			!isAddressHexStringLegal(toAddressHexString) ||
-			!isUserAccountAddressHexString(toAddressHexString) {
+		if parametersAccount := strings.ToLower(strings.TrimSpace(parameters.Account)); len(parametersAccount) == 0 {
+		} else if fromAddressHexString := strings.TrimSpace(parameters.Address); isUserAccountAddressHexString(fromAddressHexString) {
+		} else if toAddressHexString := redisHGet(getUserKey(parametersAccount), userAddressFieldName).Val(); !isUserAccountAddressHexString(toAddressHexString) {
 		} else if privateKeyPointer, err := crypto.HexToECDSA(parameters.PrivateKey); err != nil {
 			sugaredLogger.Fatal(err)
 		} else {
-
-			toAddress := common.HexToAddress(toAddressHexString)
-
-			amount :=
-				big.NewInt(0).Mul(
-					big.NewInt(int64(parameters.Size)),
-					weisPerEthBigInt,
-				) // in wei (Size eth)
-
-			if gasLimit, err :=
-				ethHttpClientPointer.EstimateGas(
-					contextBackground,
-					ethereum.CallMsg{
-						To: &toAddress,
-					},
-				); err != nil {
-				sugaredLogger.Fatal(err)
-			} else if nonce, err :=
-				ethHttpClientPointer.PendingNonceAt(
-					contextBackground,
-					common.HexToAddress(fromAddressHexString),
-				); err != nil {
-				sugaredLogger.Fatal(err)
-			} else if gasPrice, err :=
-				ethHttpClientPointer.SuggestGasPrice(contextBackground); err != nil {
-				sugaredLogger.Fatal(err)
-			} else if chainID, err :=
-				ethHttpClientPointer.NetworkID(contextBackground); err != nil {
-				sugaredLogger.Fatal(err)
-			} else {
-
-				transactionPointer :=
-					types.NewTransaction(
-						nonce,
-						toAddress,
-						amount,
-						gasLimit,
-						gasPrice,
-						nil,
-					)
-
-				if signedTransactionPointer, err :=
-					types.SignTx(
-						transactionPointer,
-						types.NewEIP155Signer(chainID),
-						privateKeyPointer,
-					); err != nil {
-					sugaredLogger.Fatal(err)
-				} else if err :=
-					ethHttpClientPointer.SendTransaction(
-						contextBackground,
-						signedTransactionPointer,
-					); err != nil {
-					sugaredLogger.Fatal(err)
-				} else {
-					sugaredLogger.Info(
-						fmt.Sprintf(
-							`送出交易 %s`,
-							signedTransactionPointer.Hash().Hex(),
-						),
-					)
-				}
-
-			}
-
+			sendTransaction(fromAddressHexString, privateKeyPointer, toAddressHexString, big.NewInt(0).Mul(big.NewInt(int64(parameters.Size)), weisPerEthBigInt))
 		}
 
 		httpStatus = http.StatusOK
-
 	}
 
 	ginContextPointer.Status(httpStatus)
-
 	logAPIRequest(ginContextPointer, parameters, httpStatus)
-
 	<-isUndoneChannel
-
 }
